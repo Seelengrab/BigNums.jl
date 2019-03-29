@@ -233,59 +233,44 @@ function _mul(a::ArbitInt, b::ArbitInt)
         c = ArbitInt(sizehint = a.size + b.size) # we may overflow
     # end
 
-    carry::UInt = 0
-    idx_b = 0
-    while idx_b < b.size
-        lower = b.elems[end - idx_b] & (typemax(UInt) >> shiftsize)
-        upper = b.elems[end - idx_b] >> shiftsize
+    # carry::UInt = 0
+    for idx_b in 0:(b.size - 1)
+        low_b = b.elems[end - idx_b] & (typemax(UInt) >> shiftsize)
+        upp_b = b.elems[end - idx_b] >> shiftsize
 
-        idx_a = 0
-        while idx_a < a.size
-            LowLow = (a.elems[end - idx_a] & (typemax(UInt) >> shiftsize)) * lower
-            UppLow = (a.elems[end - idx_a] >> shiftsize) * lower
-            LowUpp = (a.elems[end - idx_a] & (typemax(UInt) >> shiftsize)) * upper
-            UppUpp = (a.elems[end - idx_a] >> shiftsize) * upper
+        for idx_a in 0:(a.size - 1)
+            low_a = a.elems[end - idx_a] & (typemax(UInt) >> shiftsize)
+            upp_a = a.elems[end - idx_a] >> shiftsize
 
-            tmp, cry1 = add_with_overflow(LowLow, UppLow << shiftsize)
-            tmp, cry2 = add_with_overflow(tmp, LowUpp << shiftsize)
-            tmp, cry3 = add_with_overflow(tmp, c.elems[end - idx_a - idx_b])
-            tmp, cry = add_with_overflow(tmp, carry)
+            LowLow = low_a * low_b
+            UppLow = upp_a * low_b
+            LowUpp = low_a * upp_b
+            UppUpp = upp_a * upp_b
+
+            tmp, carr = add_with_overflow(LowLow, UppLow << shiftsize)
+            if carr
+                c.elems[end - idx_a - idx_b - 1] += 1
+            end
+
+            tmp, carr = add_with_overflow(tmp, LowUpp << shiftsize)
+            if carr
+                c.elems[end - idx_a - idx_b - 1] += 1
+            end
+
+            tmp, carr = add_with_overflow(tmp, c.elems[end - idx_a - idx_b])
+            if carr
+                c.elems[end - idx_a - idx_b - 1] += 1
+            end
             c.elems[end - idx_a - idx_b] = tmp
 
-            carry = 0
-
-            if cry1
-                carry += 1
-            end
-            if cry2
-                carry += 1
-            end
-            if cry3
-                carry += 1
-            end
-            if cry
-                carry += 1
-            end
+            # c.elems[end - idx_a - idx_b] = tmp
 
             # these three additions should never overflow, as only the upper half of the bits are added
             # and UppUpp isn't big enough to cause overflow with the other values
-            carry += (UppLow >> shiftsize)
-            carry += (LowUpp >> shiftsize)
-            carry += UppUpp
-
-            idx_a += 1
+            c.elems[end - idx_a - idx_b - 1] += (UppLow >> shiftsize)
+            c.elems[end - idx_a - idx_b - 1] += (LowUpp >> shiftsize)
+            c.elems[end - idx_a - idx_b - 1] += UppUpp
         end
-
-        idx_b += 1
-    end
-
-    # TODO: handle leftover carry
-    if carry != 0
-    # while idx_b < a.size # carry not set/there is carry
-        # c.elems[end - idx_b - a.size], cry = add_with_overflow(a.elems[end - idx_b], carry)
-        c.elems[1] += carry
-        # carry = cry ? 1 : 0
-        # idx_b += 1
     end
 
     return c
