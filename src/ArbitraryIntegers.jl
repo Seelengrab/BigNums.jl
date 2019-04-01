@@ -77,18 +77,9 @@ function _add(a::ArbitInt, b::ArbitInt)
     # this can lead to one unnecessary word, if no overflow occurs
 
     # b.size <= a.size is guaranteed
-    # FIXME: Include bubbling up overflow!
-    if add_with_overflow(a.elems[end - b.size + 1], b.elems[1])[2]
-        if a.size == b.size || a.elems[1] == typemax(UInt)
-            nsize = a.size + 1 # FIXME: Check for overflow
-        else
-            nsize = a.size
-        end
-    else
-        nsize = a.size
-    end
-
-    c = ArbitInt(sizehint = nsize)
+    # FIXME: We only need this sometimes
+    nsize = a.size + 1 # FIXME: Check for overflow
+    c = zeros(UInt, nsize)
 
     carry = false
     idx = 0
@@ -96,19 +87,19 @@ function _add(a::ArbitInt, b::ArbitInt)
         if carry
             if idx < b.size
                 ibt, nc = add_with_overflow(a.elems[end - idx], b.elems[end - idx])
-                c.elems[end - idx], carry = add_with_overflow(ibt, one(UInt))
+                c[end - idx], carry = add_with_overflow(ibt, one(UInt))
 
                 # we don't know if adding the elements or adding the previous carry overflowed
                 carry = carry || nc
             else
-                c.elems[end - idx], carry = add_with_overflow(a.elems[end - idx], one(UInt))
+                c[end - idx], carry = add_with_overflow(a.elems[end - idx], one(UInt))
             end
         else
             if idx < b.size
-                c.elems[end - idx], carry = add_with_overflow(a.elems[end - idx],
+                c[end - idx], carry = add_with_overflow(a.elems[end - idx],
                                                               b.elems[end - idx])
             else
-                c.elems[end - idx] = a.elems[end - idx]
+                c[end - idx] = a.elems[end - idx]
             end
         end
 
@@ -116,10 +107,16 @@ function _add(a::ArbitInt, b::ArbitInt)
     end
 
     if carry
-        c.elems[1] += one(UInt)
+        c[1] += one(UInt)
     end
 
-    return c
+    # FIXME: I'd rather not mutate this
+    if iszero(c[1])
+        popfirst!(c)
+        nsize -= 1
+    end
+
+    return ArbitInt(c, nsize)
 end
 
 ### SUBTRACTION ###
