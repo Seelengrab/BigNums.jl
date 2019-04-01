@@ -3,34 +3,20 @@ module ArbitraryTests
 using ArbitraryIntegers
 using Test
 using PropCheck
+using Combinatorics: permutations
 
 ### Function Defs
 
-# 3 should cover most cases, at least until array generation is supported
-PropCheck.generate(::Type{ArbitInt{UInt}}) = ArbitInt([rand(UInt), rand(UInt), rand(UInt)])
+PropCheck.generate(::Type{ArbitInt{UInt}}) = ArbitInt(generate(UInt, (rand(UInt) % 20) + 1))
 
 const _lowerHalf = typemax(UInt) >> (sizeof(UInt) >> 1)
 const _upperHalf = _lowerHalf << (sizeof(UInt) >> 1)
+const must_tests = [one(UInt), zero(UInt), _lowerHalf, _upperHalf, typemax(UInt)]
 
 PropCheck.specials(::Type{ArbitInt{UInt}}) = ArbitInt{UInt}[
-    zero(ArbitInt),
-    one(ArbitInt),
-    ArbitInt([typemax(UInt)]),
-    ArbitInt([UInt(1), zero(UInt)]),
-    ArbitInt([typemax(UInt), zero(UInt)]),
-    ArbitInt([_lowerHalf]),
-    ArbitInt([_upperHalf]),
-    ArbitInt([_lowerHalf, _lowerHalf]),
-    ArbitInt([_lowerHalf, _upperHalf]),
-    ArbitInt([_upperHalf, _upperHalf]),
-    ArbitInt([_upperHalf, _lowerHalf]),
-    ArbitInt([_upperHalf, typemax(UInt)]),
-    ArbitInt([_upperHalf, zero(UInt)]),
-    ArbitInt([_upperHalf, one(UInt)]),
-    ArbitInt([_lowerHalf, typemax(UInt)]),
-    ArbitInt([_lowerHalf, zero(UInt)]),
-    ArbitInt([_lowerHalf, one(UInt)]),
-    ArbitInt([one(UInt), typemax(UInt) - 1, typemax(UInt)])
+    ArbitInt.(must_tests)...,
+    ArbitInt.(permutations(must_tests, 2))...,
+    ArbitInt.(permutations(must_tests, 3))...,
 ]
 
 ### Properties ###
