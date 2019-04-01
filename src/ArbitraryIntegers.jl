@@ -221,7 +221,7 @@ function _mul(a::ArbitInt, b::ArbitInt)
         return zero(a)
     end
 
-    shiftsize = sizeof(UInt) * 4        # equiv. to sizeof(UInt) * 8 / 2
+    shiftsize = sizeof(UInt) * UInt(4)        # equiv. to sizeof(UInt) * 8 / 2
 
     # if b.elems[1] < (1 << shiftsize) && a.elems[1] < (1 << shiftsize)
     #     c = ArbitInt(sizehint = a.size) # we won't overflow
@@ -231,13 +231,13 @@ function _mul(a::ArbitInt, b::ArbitInt)
     # end
 
     # carry::UInt = 0
-    for idx_b in 0:(b.size - 1)
-        low_b = b.elems[end - idx_b] & (typemax(UInt) >> shiftsize)
-        upp_b = b.elems[end - idx_b] >> shiftsize
+    @inbounds for idx_b in 0:(b.size - 1)
+        low_b::UInt = b.elems[end - idx_b] & (typemax(UInt) >> shiftsize)
+        upp_b::UInt = b.elems[end - idx_b] >> shiftsize
 
-        for idx_a in 0:(a.size - 1)
-            low_a = a.elems[end - idx_a] & (typemax(UInt) >> shiftsize)
-            upp_a = a.elems[end - idx_a] >> shiftsize
+        @inbounds for idx_a in 0:(a.size - 1)
+            low_a::UInt = a.elems[end - idx_a] & (typemax(UInt) >> shiftsize)
+            upp_a::UInt = a.elems[end - idx_a] >> shiftsize
 
             LowLow = low_a * low_b
             UppLow = upp_a * low_b
@@ -245,22 +245,15 @@ function _mul(a::ArbitInt, b::ArbitInt)
             UppUpp = upp_a * upp_b
 
             tmp, carr = add_with_overflow(LowLow, UppLow << shiftsize)
-            if carr
-                c.elems[end - idx_a - idx_b - 1] += 1
-            end
+            c.elems[end - idx_a - idx_b - 1] += carr
 
             tmp, carr = add_with_overflow(tmp, LowUpp << shiftsize)
-            if carr
-                c.elems[end - idx_a - idx_b - 1] += 1
-            end
+            c.elems[end - idx_a - idx_b - 1] += carr
 
-            tmp, carr = add_with_overflow(tmp, c.elems[end - idx_a - idx_b])
-            if carr
-                c.elems[end - idx_a - idx_b - 1] += 1
-            end
-            c.elems[end - idx_a - idx_b] = tmp
+            tmp2, carr = add_with_overflow(tmp, c.elems[end - idx_a - idx_b])
+            c.elems[end - idx_a - idx_b - 1] += carr
 
-            # c.elems[end - idx_a - idx_b] = tmp
+            c.elems[end - idx_a - idx_b] = tmp2
 
             # these three additions should never overflow, as only the upper half of the bits are added
             # and UppUpp isn't big enough to cause overflow with the other values
