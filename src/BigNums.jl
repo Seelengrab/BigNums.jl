@@ -1,44 +1,44 @@
-module ArbitraryIntegers
+module BigNums
 
 import Base.Checked.add_with_overflow
 
-export ArbitInt
+export ArbInt
 
 abstract type AbstractArbitInt end
 
-struct ArbitInt{T <: Union{AbstractArbitInt, UInt}} <: AbstractArbitInt
+struct ArbInt{T <: Union{AbstractArbitInt, UInt}} <: AbstractArbitInt
     elems::Array{UInt, 1}
     size::T
 end
 
-ArbitInt(;sizehint = one(UInt)) = ArbitInt(zeros(UInt, sizehint), sizehint)
-ArbitInt(x::UInt) = ArbitInt(UInt[x], one(UInt))
-ArbitInt(elems::Array{UInt, 1}) = begin
+ArbInt(;sizehint = one(UInt)) = ArbInt(zeros(UInt, sizehint), sizehint)
+ArbInt(x::UInt) = ArbInt(UInt[x], one(UInt))
+ArbInt(elems::Array{UInt, 1}) = begin
     sanitizedElems = elems[findfirst(!iszero, elems):end]
-    ArbitInt(sanitizedElems, UInt(length(sanitizedElems)))
+    ArbInt(sanitizedElems, UInt(length(sanitizedElems)))
 end
 
-Base.zero(::Type{ArbitInt}) = ArbitInt(zero(UInt))
-Base.one(::Type{ArbitInt}) = ArbitInt(one(UInt))
-Base.zero(::ArbitInt) = ArbitInt(zero(UInt))
-Base.one(::ArbitInt) = ArbitInt(one(UInt))
+Base.zero(::Type{ArbInt}) = ArbInt(zero(UInt))
+Base.one(::Type{ArbInt}) = ArbInt(one(UInt))
+Base.zero(::ArbInt) = ArbInt(zero(UInt))
+Base.one(::ArbInt) = ArbInt(one(UInt))
 
-Base.leading_zeros(a::ArbitInt) = leading_zeros(a.elems[1])
-Base.leading_ones(a::ArbitInt) = leading_ones(a.elems[1])
-Base.iszero(a::ArbitInt) = a.size == 1 && iszero(a.elems[1])
-Base.isone(a::ArbitInt) = a.size == 1 && isone(a.elems[1])
+Base.leading_zeros(a::ArbInt) = leading_zeros(a.elems[1])
+Base.leading_ones(a::ArbInt) = leading_ones(a.elems[1])
+Base.iszero(a::ArbInt) = a.size == 1 && iszero(a.elems[1])
+Base.isone(a::ArbInt) = a.size == 1 && isone(a.elems[1])
 
-Base.deepcopy(a::ArbitInt) = ArbitInt(deepcopy(a.elems), deepcopy(a.size))
+Base.deepcopy(a::ArbInt) = ArbInt(deepcopy(a.elems), deepcopy(a.size))
 
-Base.:(==)(a::ArbitInt, b::ArbitInt) = a.size == b.size && a.elems == b.elems
+Base.:(==)(a::ArbInt, b::ArbInt) = a.size == b.size && a.elems == b.elems
 
-Base.show(io::IO, a::ArbitInt) = print(io, a.size, ':', a.elems)
+Base.show(io::IO, a::ArbInt) = print(io, a.size, ':', a.elems)
 
 ### ADDITION ###
 
-function Base.:+(a::ArbitInt, b::UInt)
+function Base.:+(a::ArbInt, b::UInt)
     nsize = a.elems[1] == typemax(eltype(a.elems)) ? a.size + 1 : a.size # FIXME: Check for overflow
-    c = ArbitInt(sizehint = nsize)
+    c = ArbInt(sizehint = nsize)
     elem, carry = add_with_overflow(a.elems[end], b)
     c.elems[end] = elem
 
@@ -58,9 +58,9 @@ function Base.:+(a::ArbitInt, b::UInt)
 
     return c
 end
-Base.:+(b::UInt, a::ArbitInt) = a + b
+Base.:+(b::UInt, a::ArbInt) = a + b
 
-function Base.:+(a::ArbitInt, b::ArbitInt)
+function Base.:+(a::ArbInt, b::ArbInt)
     if (a.size >= b.size)
         return _add(a, b)
     else
@@ -68,7 +68,7 @@ function Base.:+(a::ArbitInt, b::ArbitInt)
     end
 end
 
-function _add(a::ArbitInt, b::ArbitInt)
+function _add(a::ArbInt, b::ArbInt)
     if iszero(b)
         return deepcopy(a)
     end
@@ -116,7 +116,7 @@ function _add(a::ArbitInt, b::ArbitInt)
         nsize -= 1
     end
 
-    return ArbitInt(c, nsize)
+    return ArbInt(c, nsize)
 end
 
 ### SUBTRACTION ###
@@ -125,7 +125,7 @@ end
 
 ### MULTIPLICATION ###
 
-function Base.:*(a::ArbitInt, b::UInt)
+function Base.:*(a::ArbInt, b::UInt)
     if b == 1
         return deepcopy(a)
     elseif b == 0
@@ -153,10 +153,10 @@ function Base.:*(a::ArbitInt, b::UInt)
     # If both are zero, we won't overflow the multiplication.
 
     if b < (1 << shiftsize) && a.elems[1] < (1 << shiftsize)
-        c = ArbitInt(sizehint = a.size) # we won't overflow
+        c = ArbInt(sizehint = a.size) # we won't overflow
     else
-        # FIXME: Check for overflow and convert to ArbitInt
-        c = ArbitInt(sizehint = a.size + 1) # we may overflow
+        # FIXME: Check for overflow and convert to ArbInt
+        c = ArbInt(sizehint = a.size + 1) # we may overflow
     end
 
     lower = b & (typemax(UInt) >> shiftsize)
@@ -201,9 +201,9 @@ function Base.:*(a::ArbitInt, b::UInt)
 
     return c
 end
-Base.:*(b::UInt, a::ArbitInt) = a * b
+Base.:*(b::UInt, a::ArbInt) = a * b
 
-Base.:*(a::ArbitInt, b::ArbitInt) = begin
+Base.:*(a::ArbInt, b::ArbInt) = begin
     if a.size > b.size
         _mul(a, b)
     else
@@ -211,7 +211,7 @@ Base.:*(a::ArbitInt, b::ArbitInt) = begin
     end
 end
 
-function _mul(a::ArbitInt, b::ArbitInt)
+function _mul(a::ArbInt, b::ArbInt)
     # TODO: make this faster by using a better algorithm
     if isone(b)
         return deepcopy(a)
@@ -224,10 +224,10 @@ function _mul(a::ArbitInt, b::ArbitInt)
     shiftsize = sizeof(UInt) * UInt(4)        # equiv. to sizeof(UInt) * 8 / 2
 
     # if b.elems[1] < (1 << shiftsize) && a.elems[1] < (1 << shiftsize)
-    #     c = ArbitInt(sizehint = a.size) # we won't overflow
+    #     c = ArbInt(sizehint = a.size) # we won't overflow
     # else
-        # FIXME: Check for overflow and convert to ArbitInt
-        c = ArbitInt(sizehint = a.size + b.size) # we may overflow
+        # FIXME: Check for overflow and convert to ArbInt
+        c = ArbInt(sizehint = a.size + b.size) # we may overflow
     # end
 
     # carry::UInt = 0

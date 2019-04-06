@@ -1,4 +1,4 @@
-name = "ArbitraryIntegers"
+name = "BigNums"
 uuid = "0882b250-0523-11e9-0c53-35359ba2b199"
 authors = ["Sukera <Seelengrab@users.noreply.github.com>"]
 version = "0.1.0"
