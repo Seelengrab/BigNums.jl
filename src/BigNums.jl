@@ -33,6 +33,7 @@ Base.deepcopy(a::ArbInt) = ArbInt(deepcopy(a.elems), deepcopy(a.size))
 Base.:(==)(a::ArbInt, b::ArbInt) = a.size == b.size && a.elems == b.elems
 
 Base.show(io::IO, a::ArbInt) = print(io, a.size, ':', a.elems)
+Base.bitstring(a::ArbInt) = mapreduce(bitstring, *, a.elems)
 
 ### ADDITION ###
 
@@ -213,31 +214,37 @@ end
 
 function _mul(a::ArbInt, b::ArbInt)
     # TODO: make this faster by using a better algorithm
-    if isone(b)
-        return deepcopy(a)
-    elseif isone(a)
-        return deepcopy(b)
-    elseif iszero(a) || iszero(b)
-        return zero(a)
-    end
+    # if isone(b)
+    #     return deepcopy(a)
+    # elseif isone(a)
+    #     return deepcopy(b)
+    # elseif iszero(a) || iszero(b)
+    #     return zero(a)
+    # end
 
     shiftsize = sizeof(UInt) * UInt(4)        # equiv. to sizeof(UInt) * 8 / 2
 
     # if b.elems[1] < (1 << shiftsize) && a.elems[1] < (1 << shiftsize)
     #     c = ArbInt(sizehint = a.size) # we won't overflow
     # else
-        # FIXME: Check for overflow and convert to ArbInt
-        c = ArbInt(sizehint = a.size + b.size) # we may overflow
+
+    # FIXME: Check for overflow and convert to ArbInt
+    nsize = a.size + b.size # FIXME: Check for overflow
+    c = zeros(UInt, nsize)
+
+    # c = ArbInt(sizehint = a.size + b.size) # we may overflow
     # end
 
-    # carry::UInt = 0
+    CARRY = zero(UInt)
     @inbounds for idx_b in 0:(b.size - 1)
-        low_b::UInt = b.elems[end - idx_b] & (typemax(UInt) >> shiftsize)
-        upp_b::UInt = b.elems[end - idx_b] >> shiftsize
+        b_el = b.elems[end - idx_b]
+        low_b::UInt = b_el & (typemax(UInt) >> shiftsize)
+        upp_b::UInt = b_el >> shiftsize
 
         @inbounds for idx_a in 0:(a.size - 1)
-            low_a::UInt = a.elems[end - idx_a] & (typemax(UInt) >> shiftsize)
-            upp_a::UInt = a.elems[end - idx_a] >> shiftsize
+            a_el = a.elems[end - idx_a]
+            low_a::UInt = a_el & (typemax(UInt) >> shiftsize)
+            upp_a::UInt = a_el >> shiftsize
 
             LowLow = low_a * low_b
             UppLow = upp_a * low_b
@@ -245,25 +252,54 @@ function _mul(a::ArbInt, b::ArbInt)
             UppUpp = upp_a * upp_b
 
             tmp, carr = add_with_overflow(LowLow, UppLow << shiftsize)
-            c.elems[end - idx_a - idx_b - 1] += carr
+            c[end - idx_a - idx_b - 1], carr = add_with_overflow(c[end - idx_a - idx_b - 1], UInt(carr))
+            CARRY += carr
 
             tmp, carr = add_with_overflow(tmp, LowUpp << shiftsize)
-            c.elems[end - idx_a - idx_b - 1] += carr
+            c[end - idx_a - idx_b - 1], carr = add_with_overflow(c[end - idx_a - idx_b - 1], UInt(carr))
+            CARRY += carr
 
-            tmp2, carr = add_with_overflow(tmp, c.elems[end - idx_a - idx_b])
-            c.elems[end - idx_a - idx_b - 1] += carr
+            tmp, carr = add_with_overflow(tmp, c[end - idx_a - idx_b])
+            c[end - idx_a - idx_b - 1], carr = add_with_overflow(c[end - idx_a - idx_b - 1], UInt(carr))
+            CARRY += carr
 
-            c.elems[end - idx_a - idx_b] = tmp2
+            c[end - idx_a - idx_b] = tmp
 
             # these three additions should never overflow, as only the upper half of the bits are added
             # and UppUpp isn't big enough to cause overflow with the other values
-            c.elems[end - idx_a - idx_b - 1] += (UppLow >> shiftsize)
-            c.elems[end - idx_a - idx_b - 1] += (LowUpp >> shiftsize)
-            c.elems[end - idx_a - idx_b - 1] += UppUpp
+            c[end - idx_a - idx_b - 1], carr = add_with_overflow(
+                c[end - idx_a - idx_b - 1],
+                UppLow >> shiftsize
+                )
+            CARRY += carr
+
+            c[end - idx_a - idx_b - 1], carr = add_with_overflow(
+                c[end - idx_a - idx_b - 1],
+                LowUpp >> shiftsize
+                )
+            CARRY += carr
+
+            c[end - idx_a - idx_b - 1], carr = add_with_overflow(
+                c[end - idx_a - idx_b - 1],
+                UppUpp >> shiftsize
+                )
+            CARRY += carr
+
+            if CARRY > 0
+                c[end - idx_a - idx_b - 2], CARRY = add_with_overflow(c[end - idx_a - idx_b - 2], UInt(CARRY))
+            end
+            CARRY != 0 && println("CARRY: $CARRY")
+            CARRY = zero(UInt)
+
         end
     end
 
-    return c
+    while iszero(c[1]) && nsize > 1
+        popfirst!(c)
+        nsize -= 1
+    end
+
+    return ArbInt(c, nsize)
 end
 
 ### DIVISION ###
