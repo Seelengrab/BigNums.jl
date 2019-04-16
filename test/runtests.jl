@@ -1,6 +1,6 @@
 module BigNumTests
 
-using BigNum
+using BigNums
 using Test
 using PropCheck
 using Combinatorics: permutations
