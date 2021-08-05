@@ -3,7 +3,7 @@ if UInt64Digit[]
     const DoubleArbDigit = UInt128
     const SignedDoubleArbDigit = Int128
 else
-    const BigDigit = UInt32
+    const ArbDigit = UInt32
     const DoubleArbDigit = UInt64
     const SignedDoubleArbDigit = Int64
 end
@@ -19,3 +19,16 @@ lowBits(n) = ArbDigit(n & LO_MASK)
 
 fromDoubleArbDigit(n) = (highBits(n), lowBits(n))
 toDoubleArbDigit(hi, lo) = DoubleArbDigit(lo) | (DoubleArbDigit(hi) << BITS)
+
+function u32_to_u128(a::UInt32,b::UInt32,c::UInt32,d::UInt32)
+    UInt128(d) | (UInt128(c) << 32) | (UInt128(c) << 64) | UInt128(c) << 96
+end
+
+function u32_from_u128(n)
+    (
+        (n >> 96) % UInt32,
+        (n >> 64) % UInt32,
+        (n >> 32) % UInt32,
+        n % UInt32
+    )
+end

@@ -4,30 +4,38 @@ export ArbUInt
 
 struct ArbUInt <: Unsigned
     data::Vector{ArbDigit}
-    
     ArbUInt(data::AbstractVector{ArbDigit}) = normalize!(new(data))
 end
+ArbUInt(data::AbstractVector) = ArbUInt(convert(Vector{ArbDigit}, data))
 ArbUInt() = zero(ArbUInt)
+ArbUInt(x) = ArbUInt(ArbDigit[x])
+
+Base.string(a::ArbUInt) = "ArbUInt($(a.data))"
+Base.show(io::IO, a::ArbUInt) = print(io, string(a))
+Base.show(io::IO, m::MIME"text/plain", a::ArbUInt) = print(io, string(a))
 
 Base.deepcopy(a::ArbUInt) = ArbUInt(deepcopy(a.data))
 
-Base.(==)(a::ArbUInt, b::ArbUInt) = a.data == b.data
+Base.:(==)(a::ArbUInt, b::ArbUInt) = a.data == b.data
 Base.hash(a::ArbUInt, h) = hash(a.data, h)
 
-Base.(<)(a::ArbUInt, b::ArbUInt) = a.data < b.data
+Base.:(<)(a::ArbUInt, b::ArbUInt) = a.data < b.data
+Base.:(<=)(a::ArbUInt, b::ArbUInt) = a < b || a == b
 
 Base.zero(a::ArbUInt) = zero(ArbUInt)
 Base.one(a::ArbUInt) = one(ArbUInt)
-Base.zero(::Type{ArbUInt}) = ArbUInt([])
+Base.zero(::Type{ArbUInt}) = ArbUInt(ArbDigit[])
 Base.one(::Type{ArbUInt}) = ArbUInt([1])
 
 Base.isone(a::ArbUInt) = isone(length(a.data)) & isone(a.data[end])
 Base.iszero(a::ArbUInt) = isempty(a.data)
 
 function normalize!(a::ArbUInt)
+    iszero(a) || !iszero(a.data[end]) && return a # already normalized
     lastZero = findlast(iszero, a.data)
-    lastZero === nothing && return # already normalized
+    lastZero === nothing && return a
     length(a.data) > 0 && resize!(a.data, lastZero - 1)
+    a
 end
 
 function set_one!(a::ArbUInt)
@@ -61,7 +69,7 @@ function is_bit_set(a::ArbUInt, bit)
     return (digit & mask) != 0
 end
 
-function set_bit(a::ArbInt, bit, val)
+function set_bit(a::ArbUInt, bit, val)
     bits_per_digit = UInt64(BITS)
     digit_index = bit ÷ bits_per_digit
     mask = one(ArbDigit) << (bit % bits_per_digit)
@@ -76,7 +84,7 @@ function set_bit(a::ArbInt, bit, val)
     end
 end
 
-include("additon.jl")
+include("addition.jl")
 
 ### SUBTRACTION ###
 
@@ -84,11 +92,11 @@ include("additon.jl")
 
 ### MULTIPLICATION ###
 
-function Base.:*(a::ArbInt, b::UInt)
+function Base.:*(a::ArbUInt, b::UInt)
     # TODO: Implement multiplication with UInt
 end
 
-function mul(a::ArbInt, b::ArbInt)
+function mul(a::ArbUInt, b::ArbUInt)
     # TODO: Implement multiplication
 end
 
