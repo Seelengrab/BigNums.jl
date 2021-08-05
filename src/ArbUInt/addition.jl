@@ -79,7 +79,7 @@ end
 function add!(a::ArbUInt, b::DoubleArbDigit)
     hi, lo = fromDoubleArbDigit(b)
     if iszero(hi)
-        add!(a, hi)
+        add!(a, lo)
     else
         while length(a.data) < 2
             push!(a.data, 0)
@@ -118,8 +118,9 @@ if DoubleArbDigit === UInt64
     end
 end
 
-# fallback gracefully
-# TODO: add UInt128 methods
-Base.:(+)(a::Unsigned, b::ArbUInt) = add!(b, convert(ArbDigit, a))
-Base.:(+)(a::ArbUInt, b::Unsigned) = add!(a, convert(ArbDigit, b))
-Base.:(+)(a::ArbUInt, b::ArbUInt) = length(a.data) >= length(b.data) ? add!(a, deepcopy(b)) : add!(b, deepcopy(a))
+# fallback gracefully to copying interface
+Base.:(+)(a::UInt128, b::ArbUInt) = add!(deepcopy(b), a)
+Base.:(+)(a::ArbUInt, b::UInt128) = add!(deepcopy(a), b)
+Base.:(+)(a::Unsigned, b::ArbUInt) = add!(deepcopy(b), convert(ArbDigit, a))
+Base.:(+)(a::ArbUInt, b::Unsigned) = add!(deepcopy(a), convert(ArbDigit, b))
+Base.:(+)(a::ArbUInt, b::ArbUInt) = length(a.data) >= length(b.data) ? add!(deepcopy(a), b) : add!(deepcopy(b), a)
