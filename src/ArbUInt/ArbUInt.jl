@@ -27,20 +27,25 @@ Base.one(a::ArbUInt) = one(ArbUInt)
 Base.zero(::Type{ArbUInt}) = ArbUInt(ArbDigit[])
 Base.one(::Type{ArbUInt}) = ArbUInt([1])
 
-Base.isone(a::ArbUInt) = isone(length(a.data)) & isone(a.data[end])
+Base.isone(a::ArbUInt) = isone(length(a.data)) && isone(a.data[end])
 Base.iszero(a::ArbUInt) = isempty(a.data)
 
 function normalize!(a::ArbUInt)
-    iszero(a) || !iszero(a.data[end]) && return a # already normalized
-    lastZero = findlast(iszero, a.data)
-    lastZero === nothing && return a
-    length(a.data) > 0 && resize!(a.data, lastZero - 1)
+    lastZero = findlast(!iszero, a.data)
+    lastZero === nothing || lastZero == length(a.data) && return a
+    resize!(a.data, lastZero + 1)
     a
 end
 
 function set_one!(a::ArbUInt)
+    resize!(a.data, 1)
+    a.data[begin] = one(ArbDigit)
+    a
+end
+
+function set_zero!(a::ArbUInt)
     resize!(a.data, 0)
-    push!(a.data, 1)
+    a
 end
 
 function Base.trailing_zeros(a::ArbUInt)
@@ -61,7 +66,7 @@ Base.count_ones(a::ArbUInt) = mapreduce(count_ones, +, a.data)
 Base.count_zeros(a::ArbUInt) = mapreduce(count_zeros, +, a.data)
 
 function is_bit_set(a::ArbUInt, bit)
-    bits_per_digit = UInt64(BITS)
+    bits_per_digit = UInt(BITS)
     digit_index = bit ÷ bits_per_digit
     iszero(digitindex) && return false
     digit = a.data[digit_index]
@@ -69,9 +74,9 @@ function is_bit_set(a::ArbUInt, bit)
     return (digit & mask) != 0
 end
 
-function set_bit(a::ArbUInt, bit, val)
-    bits_per_digit = UInt64(BITS)
-    digit_index = bit ÷ bits_per_digit
+function set_bit!(a::ArbUInt, bit, value)
+    bits_per_digit = UInt(BITS)
+    digit_index = bits_per_digit > bit ? typemax(UInt) : bit ÷ bits_per_digit
     mask = one(ArbDigit) << (bit % bits_per_digit)
     if value
         if digit_index > length(a.data)
@@ -82,6 +87,7 @@ function set_bit(a::ArbUInt, bit, val)
         a.data[digit_index] &= ~mask
         normalize!(data)
     end
+    a
 end
 
 include("addition.jl")
