@@ -92,6 +92,7 @@ end
 
 include("addition.jl")
 include("bits.jl")
+include("shifts.jl")
 
 ### SUBTRACTION ###
 
