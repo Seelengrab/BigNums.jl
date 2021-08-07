@@ -85,6 +85,7 @@ function set_bit(a::ArbUInt, bit, val)
 end
 
 include("addition.jl")
+include("bits.jl")
 
 ### SUBTRACTION ###
 
