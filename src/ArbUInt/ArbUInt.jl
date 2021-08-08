@@ -95,6 +95,7 @@ function set_bit!(a::ArbUInt, bit, value)
 end
 
 include("addition.jl")
+include("subtraction.jl")
 include("bits.jl")
 include("shifts.jl")
 

@@ -4,7 +4,7 @@
 
 function shift_left!(a::ArbUInt, shift::T) where T <: Integer
     shift < zero(T) && return shift_right!(a, abs(shift))
-    iszero(n) && return a
+    iszero(shift) && return a
     bits = T(BITS)
     more_digits = shift ÷ bits
     more_digits > typemax(UInt) && throw(DomainError(shift, "requested shift too large to fit in memory"))
@@ -19,7 +19,8 @@ function _shift_left!(a::ArbUInt, new_digits::UInt, shift::UInt8)
         a.data
     else
         # we may crash here due to lack of memory, nothing we can do about that
-        Base._growbeg0!(a, new_digits + 1) # REMOVEME: once we can grow with guaranteed zeroed memory, since this is internal
+        Base._growbeg0!(a.data, signed(new_digits) + 1) # REMOVEME: once we can grow with guaranteed zeroed memory, since this is internal
+        a.data
     end
 
     one_based_digits = new_digits + 1
@@ -34,10 +35,11 @@ function _shift_left!(a::ArbUInt, new_digits::UInt, shift::UInt8)
         end
     end
 
-    a # unlike rust, we modify the original - not sure if that's a good idea
+    normalize!(a) # unlike rust, we modify the original - not sure if that's a good idea
 end
 
 Base.:(<<)(a::ArbUInt, b::T) where T <: Integer = shift_left!(deepcopy(a), b)
+Base.:(<<)(a::ArbUInt, b::T) where T <: Unsigned = shift_left!(deepcopy(a), b) # ambiguity
 Base.:(<<)(_, b::ArbUInt) = throw(ArgumentError("can't leftshift by ArbUInt"))
 Base.:(<<)(_::ArbUInt, _::ArbUInt) = throw(ArgumentError("can't leftshift ArbUInt by another ArbUInt"))
 
