@@ -32,8 +32,8 @@ Base.iszero(a::ArbUInt) = isempty(a.data)
 
 function normalize!(a::ArbUInt)
     lastZero = findlast(!iszero, a.data)
-    lastZero === nothing || lastZero == length(a.data) && return a
-    resize!(a.data, lastZero + 1)
+    lastZero === nothing && return a
+    resize!(a.data, lastZero)
     a
 end
 
