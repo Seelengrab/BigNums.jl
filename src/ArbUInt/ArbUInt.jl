@@ -9,6 +9,10 @@ end
 ArbUInt(data::AbstractVector) = ArbUInt(convert(Vector{ArbDigit}, data))
 ArbUInt() = zero(ArbUInt)
 ArbUInt(x) = ArbUInt(ArbDigit[x])
+ArbUInt(x::DoubleArbDigit) = ArbUInt(reverse!([fromDoubleArbDigit(x)...]))
+if DoubleArbDigit === UInt64
+    ArbUInt(x::UInt128) = ArbUInt(reverse!([u32_from_u128(x)...]))
+end
 
 Base.string(a::ArbUInt) = "ArbUInt($(a.data))"
 Base.show(io::IO, a::ArbUInt) = print(io, string(a))
