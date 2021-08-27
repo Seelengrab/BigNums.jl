@@ -130,7 +130,8 @@ function bitnor!(a::ArbUInt, b::ArbUInt)
     len_a = length(a)
     len_b = length(b)
     for i in 1:min(len_a, len_b)
-        a.data[i] ⊽= b.data[i]
+        # a.data[i] ⊽= b.data[i] # FIXME: I think this should be possible?
+        a.data[i] = a.data[i] ⊽ b.data[i]
     end
     if len_b > len_a
         append!(a.data, @view(b.data[len_a+1:end]))
@@ -144,7 +145,8 @@ function bitnor!(a::ArbUInt, b::T) where T <: Unsigned
     # writes to a
     if sizeof(ArbDigit) >= sizeof(T)
         iszero(a) && push!(a.data, zero(ArbDigit))
-        a.data[begin] ⊽= ArbDigit(b)
+        # a.data[begin] ⊽= ArbDigit(b) # FIXME: I think this should be possible?
+        a.data[begin] = a.data[begin] ⊽ ArbDigit(b)
         a_data = @view(a.data[begin+1:end])
         map!(~, a_data, a_data)
     else
@@ -154,7 +156,8 @@ function bitnor!(a::ArbUInt, b::T) where T <: Unsigned
             resize!(a.data, mod_size)
             a.data[old_length + 1:end] .= zero(ArbDigit)
         end
-        a.data[begin:mod_size] .⊽= reinterpret(ArbDigit, [b])
+        # a.data[begin:mod_size] .⊽= reinterpret(ArbDigit, [b]) # FIXME: I think this should be possible?
+        a.data[begin:mod_size] .= a.data[begin:mod_size] .⊽ reinterpret(ArbDigit, [b])
         a_data = @view(a.data[mod_size+1:end])
         map!(~, a_data, a_data)
     end
@@ -177,7 +180,8 @@ function bitnand!(a::ArbUInt, b::ArbUInt)
     len_a = length(a)
     len_b = length(b)
     for i in 1:min(len_a, len_b)
-        a.data[i] ⊼= b.data[i]
+        # a.data[i] ⊼= b.data[i] # FIXME: I think this should be possible?
+        a.data[i] = a.data[i] ⊼ b.data[i]
     end
     if len_b > len_a
         append!(a.data, @view(b.data[len_a+1:end]))
@@ -190,7 +194,8 @@ function bitnand!(a::ArbUInt, b::T) where T <: Unsigned
     # writes to a
     if sizeof(ArbDigit) >= sizeof(T)
         iszero(a) && push!(a.data, zero(ArbDigit))
-        a.data[begin] ⊼= ArbDigit(b)
+        # a.data[begin] ⊼= ArbDigit(b) # FIXME: I think this should be possible?
+        a.data[begin] = a.data[begin] ⊼ ArbDigit(b)
         fill!(@view(a.data[begin+1:end]), typemax(ArbDigit))
     else
         mod_size = (sizeof(T)÷sizeof(ArbDigit))
@@ -199,7 +204,8 @@ function bitnand!(a::ArbUInt, b::T) where T <: Unsigned
             resize!(a.data, mod_size)
             a.data[old_length + 1:end] .= zero(ArbDigit)
         end
-        a.data[begin:mod_size] .⊼= reinterpret(ArbDigit, [b])
+        # a.data[begin:mod_size] .⊼= reinterpret(ArbDigit, [b]) # FIXME: I think this should be possible?
+        a.data[begin:mod_size] .= a.data[begin:mod_size] .⊼ reinterpret(ArbDigit, [b])
         fill!(@view(a.data[mod_size+1:end]), typemax(ArbDigit))
     end
     normalize!(a)
