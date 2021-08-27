@@ -1,85 +1,90 @@
 module BigNumTests
 
 using BigNums
+using BigNums: ArbDigit
 using Test
 using PropCheck
 using Combinatorics: permutations
 
 ### Function Defs
 
-PropCheck.generate(::Type{ArbInt{UInt}}) = ArbInt(generate(UInt, (rand(UInt) % 20) + 1))
+genArbUInt(i) = Integrated(Generator{ArbUInt}((rng) -> ArbUInt(root(generate(rng, PropCheck.vector(i, Integrated(Generator(ArbDigit))))))))
+PropCheck.generate(::Type{ArbUInt}) = ArbUInt(generate(UInt, (rand(UInt) % 20) + 1))
+PropCheck.shrink(t::ArbUInt) = Iterators.map(ArbUInt, shrink(t.data))
 
-const _lowerHalf = typemax(UInt) >> (sizeof(UInt) >> 1)
-const _upperHalf = _lowerHalf << (sizeof(UInt) >> 1)
-const must_tests = [one(UInt), zero(UInt), _lowerHalf, _upperHalf, typemax(UInt)]
-
-PropCheck.specials(::Type{ArbInt{UInt}}) = ArbInt{UInt}[
-    ArbInt.(must_tests)...,
-    ArbInt.(permutations(must_tests, 2))...,
-    ArbInt.(permutations(must_tests, 3))...,
-]
+# PropCheck.specials(::Type{ArbUInt}) = ArbUInt[
+#     ArbUInt.(must_tests)...,
+#     ArbUInt.(permutations(must_tests, 2))...,
+#     ArbUInt.(permutations(must_tests, 3))...,
+# ]
 
 ### Properties ###
 
 ## Addition ##
 
-function commutative_add(a::ArbInt, b::ArbInt)
+function commutative_add(a::ArbUInt, b::ArbUInt)
     c = a + b
     d = b + a
     c == d
 end
 
-function associative_add(a::ArbInt, b::ArbInt, c::ArbInt)
+function associative_add(a::ArbUInt, b::ArbUInt, c::ArbUInt)
     d = a + (b + c)
     e = (a + b) + c
     d == e
 end
 
-function identity_add(a::ArbInt)
-    a == (a + zero(ArbInt)) && a == (zero(ArbInt) + a)
+function identity_add(a::ArbUInt)
+    a == (a + zero(ArbUInt)) && a == (zero(ArbUInt) + a)
 end
 
 ## Multiplication ##
 
-function commutative_mul(a::ArbInt, b::ArbInt)
+function commutative_mul(a::ArbUInt, b::ArbUInt)
     c = a * b
     d = b * a
     c == d
 end
 
-function associative_mul(a::ArbInt, b::ArbInt, c::ArbInt)
+function associative_mul(a::ArbUInt, b::ArbUInt, c::ArbUInt)
     d = a * (b * c)
     e = (a * b) * c
     d == e
 end
 
-function distributive_mul(a::ArbInt, b::ArbInt, c::ArbInt)
+function distributive_mul(a::ArbUInt, b::ArbUInt, c::ArbUInt)
     d = a * (b + c)
     e = (a*b) + (a*c)
     d == e
 end
 
-function identity_mul(a::ArbInt)
-    a == a * one(ArbInt) && a == one(ArbInt) * a
+function identity_mul(a::ArbUInt)
+    a == a * one(ArbUInt) && a == one(ArbUInt) * a
 end
 
-function zero_mul(a::ArbInt)
-    iszero(a * zero(ArbInt)) && iszero(zero(ArbInt) * a)
+function zero_mul(a::ArbUInt)
+    iszero(a * zero(ArbUInt)) && iszero(zero(ArbUInt) * a)
 end
 
 ### Tests ###
 
 @testset "Tests" begin
 @testset "Addition" begin
-    @check commutative_add (ArbInt{UInt}, ArbInt{UInt})
-    @check associative_add (ArbInt{UInt}, ArbInt{UInt}, ArbInt{UInt})
-    @check identity_add (ArbInt{UInt},)
+    @testset "$f" for (n,f) in ((2,commutative_add),
+                                (3,associative_add),
+                                (1,identity_add))
+        gen = PropCheck.tuple(n, genArbUInt(20))
+        @test check(gen, Base.splat(f))
+    end
 end
 @testset "Multiplication" begin
-    @check commutative_mul (ArbInt{UInt}, ArbInt{UInt}) # FIXME: broken
-    @check associative_mul (ArbInt{UInt}, ArbInt{UInt}, ArbInt{UInt}) # FIXME: broken
-    @check identity_mul (ArbInt{UInt},)
-    @check zero_mul (ArbInt{UInt},)
+    @testset "$f" for (n,f) in ((2,commutative_mul),
+                            (3,associative_mul),
+                            (1,identity_mul),
+                            (1,zero_mul))
+        gen = PropCheck.tuple(n, genArbUInt(20))
+        @test check(gen, Base.splat(f))
+    end
 end
 end
 
