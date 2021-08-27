@@ -18,53 +18,7 @@ PropCheck.shrink(t::ArbUInt) = Iterators.map(ArbUInt, shrink(t.data))
 #     ArbUInt.(permutations(must_tests, 3))...,
 # ]
 
-### Properties ###
-
-## Addition ##
-
-function commutative_add(a::ArbUInt, b::ArbUInt)
-    c = a + b
-    d = b + a
-    c == d
-end
-
-function associative_add(a::ArbUInt, b::ArbUInt, c::ArbUInt)
-    d = a + (b + c)
-    e = (a + b) + c
-    d == e
-end
-
-function identity_add(a::ArbUInt)
-    a == (a + zero(ArbUInt)) && a == (zero(ArbUInt) + a)
-end
-
-## Multiplication ##
-
-function commutative_mul(a::ArbUInt, b::ArbUInt)
-    c = a * b
-    d = b * a
-    c == d
-end
-
-function associative_mul(a::ArbUInt, b::ArbUInt, c::ArbUInt)
-    d = a * (b * c)
-    e = (a * b) * c
-    d == e
-end
-
-function distributive_mul(a::ArbUInt, b::ArbUInt, c::ArbUInt)
-    d = a * (b + c)
-    e = (a*b) + (a*c)
-    d == e
-end
-
-function identity_mul(a::ArbUInt)
-    a == a * one(ArbUInt) && a == one(ArbUInt) * a
-end
-
-function zero_mul(a::ArbUInt)
-    iszero(a * zero(ArbUInt)) && iszero(zero(ArbUInt) * a)
-end
+include("properties.jl")
 
 ### Tests ###
 
@@ -86,6 +40,74 @@ end
         @test check(gen, Base.splat(f))
     end
 end
+@testset "Bitwise" begin
+    @testset "Shifts" begin
+        @testset "$shiftAntiInverse" begin
+            # gen = 
+            # @test check(gen, Base.splat(shiftAntiInverse))
+            @test_broken false
+        end
+        @testset "$shiftSame" begin
+            @test_broken false
+        end
+        @testset "$shiftIdentity" begin
+            gen = Integrated(genArbUInt(20))
+            @test check(gen, shiftIdentity)
+        end
+        @testset "$lossyShift" begin
+            @test_broken false
+        end
+    end
+    @testset "negation" begin
+        @testset "$inverse" begin
+            gen = Integrated(genArbUInt(20))
+            @test check(gen, inverse)
+        end
+    end
+    @testset "and" begin
+        @testset "$f" for (n,f) in ((2,commutative(&)),
+                                    (1,zeroing_and),
+                                    (1,identity_and))
+            gen = PropCheck.tuple(n, genArbUInt(20))
+            @test check(gen, Base.splat(f))
+        end
+    end
+    @testset "or" begin
+        @testset "$f" for (n,f) in ((2,identity_or),
+                                    (2,commutative(|)))
+            gen = PropCheck.tuple(2, genArbUInt(20))
+            @test check(gen, Base.splat(f))
+        end
+    end
+    @testset "xor" begin
+        @testset "$zeroing_xor" begin
+            gen = genArbUInt(20)
+            @test check(gen, zeroing_xor)
+        end
+        @testset "$identity_xor" begin
+            gen = genArbUInt(20)
+            @test check(gen, identity_xor)
+        end
+        @testset "$commutative" begin
+            gen = PropCheck.tuple(2, genArbUInt(20))
+            @test check(gen, Base.splat(commutative(⊻)))
+        end
+    end
+    @testset "nor" begin
+        @testset "$f" for (n,f) in ((2,chaining_nor),
+                                    (2,commutative(⊽)))
+            gen = PropCheck.tuple(2, genArbUInt(20))
+            @test check(gen, Base.splat(f))
+        end
+    end
+    @testset "nand" begin
+        @testset "$f" for (n,f) in ((2,chaining_nand),
+                                    (2,commutative(⊼)))
+            gen = PropCheck.tuple(2, genArbUInt(20))
+            @test check(gen, Base.splat(f))
+        end
+    end
 end
 
+end
 end
