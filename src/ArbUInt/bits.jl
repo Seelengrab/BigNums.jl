@@ -116,7 +116,7 @@ Base.:(⊻)(a::T, b::ArbUInt) where T <: Unsigned = bitxor!(deepcopy(b), a)
 #####################
 
 function bitneg!(a::ArbUInt)
-    map!(~, a.data)
+    map!(~, a.data, a.data)
     normalize!(a)
 end
 Base.:(~)(a::ArbUInt) = bitneg!(deepcopy(a))
@@ -135,7 +135,8 @@ function bitnor!(a::ArbUInt, b::ArbUInt)
     if len_b > len_a
         append!(a.data, @view(b.data[len_a+1:end]))
     end
-    map!(~, @view(a.data[min(len_a,len_b)+1:end]))
+    a_data = @view(a.data[min(len_a,len_b)+1:end])
+    map!(~, a_data, a_data)
     a
 end
 
@@ -144,7 +145,8 @@ function bitnor!(a::ArbUInt, b::T) where T <: Unsigned
     if sizeof(ArbDigit) >= sizeof(T)
         iszero(a) && push!(a.data, zero(ArbDigit))
         a.data[begin] ⊽= ArbDigit(b)
-        map!(~, @view(a.data[begin+1:end]))
+        a_data = @view(a.data[begin+1:end])
+        map!(~, a_data, a_data)
     else
         mod_size = (sizeof(T)÷sizeof(ArbDigit))
         if length(a.data) < mod_size
@@ -153,7 +155,8 @@ function bitnor!(a::ArbUInt, b::T) where T <: Unsigned
             a.data[old_length + 1:end] .= zero(ArbDigit)
         end
         a.data[begin:mod_size] .⊽= reinterpret(ArbDigit, [b])
-        map!(~, @view(a.data[mod_size+1:end]))
+        a_data = @view(a.data[mod_size+1:end])
+        map!(~, a_data, a_data)
     end
     normalize!(a)
 end
