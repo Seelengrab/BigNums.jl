@@ -1,10 +1,11 @@
 name = "BigNums"
 uuid = "0882b250-0523-11e9-0c53-35359ba2b199"
 authors = ["Sukera <Seelengrab@users.noreply.github.com>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 PropCheck = "ca382230-33be-11e9-0059-d981d03070e4"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [extras]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
