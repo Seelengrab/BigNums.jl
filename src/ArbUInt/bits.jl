@@ -115,9 +115,14 @@ Base.:(⊻)(a::T, b::ArbUInt) where T <: Unsigned = bitxor!(deepcopy(b), a)
 #### bitwise negation
 #####################
 
+"""
+    ~(a)
+
+Bitwise not. Does not normalize its result.
+"""
 function bitneg!(a::ArbUInt)
     map!(~, a.data, a.data)
-    normalize!(a)
+    a # we mustn't normalize here, else a == ~~a doesn't hold anymore.
 end
 Base.:(~)(a::ArbUInt) = bitneg!(deepcopy(a))
 
@@ -127,17 +132,19 @@ Base.:(~)(a::ArbUInt) = bitneg!(deepcopy(a))
 
 function bitnor!(a::ArbUInt, b::ArbUInt)
     # writes to a
-    len_a = length(a)
-    len_b = length(b)
+    len_a = length(a.data)
+    len_b = length(b.data)
     for i in 1:min(len_a, len_b)
         # a.data[i] ⊽= b.data[i] # FIXME: I think this should be possible?
         a.data[i] = a.data[i] ⊽ b.data[i]
     end
-    if len_b > len_a
-        append!(a.data, @view(b.data[len_a+1:end]))
+    if len_b != len_a
+        if len_b > len_a
+            append!(a.data, @view(b.data[len_a+1:end]))
+        end
+        a_data = @view(a.data[min(len_a,len_b)+1:end])
+        map!(~, a_data, a_data)
     end
-    a_data = @view(a.data[min(len_a,len_b)+1:end])
-    map!(~, a_data, a_data)
     a
 end
 
@@ -166,10 +173,10 @@ end
 
 function Base.nor(a::ArbUInt, b::ArbUInt)
     short, long = length(a.data) <= length(b.data) ? (a,b) : (b,a)
-    bitor!(deepcopy(long), short) # gotta keep the upper bits
+    bitnor!(deepcopy(long), short) # gotta keep the upper bits
 end
-Base.nor(a::ArbUInt, b::T) where T <: Unsigned = bitor!(deepcopy(a), b)
-Base.nor(a::T, b::ArbUInt) where T <: Unsigned = bitor!(deepcopy(b), a)
+Base.nor(a::ArbUInt, b::T) where T <: Unsigned = bitnor!(deepcopy(a), b)
+Base.nor(a::T, b::ArbUInt) where T <: Unsigned = bitnor!(deepcopy(b), a)
 
 #################
 #### bitwise nand
@@ -177,8 +184,8 @@ Base.nor(a::T, b::ArbUInt) where T <: Unsigned = bitor!(deepcopy(b), a)
 
 function bitnand!(a::ArbUInt, b::ArbUInt)
     # writes to a
-    len_a = length(a)
-    len_b = length(b)
+    len_a = length(a.data)
+    len_b = length(b.data)
     for i in 1:min(len_a, len_b)
         # a.data[i] ⊼= b.data[i] # FIXME: I think this should be possible?
         a.data[i] = a.data[i] ⊼ b.data[i]
@@ -215,5 +222,5 @@ function Base.nand(a::ArbUInt, b::ArbUInt)
     short, long = length(a.data) <= length(b.data) ? (a,b) : (b,a)
     bitnand!(deepcopy(long), short) # gotta keep the upper bits
 end
-Base.nand(a::ArbUInt, b::T) where T <: Unsigned = bitor!(deepcopy(a), b)
-Base.nand(a::T, b::ArbUInt) where T <: Unsigned = bitor!(deepcopy(b), a)
+Base.nand(a::ArbUInt, b::T) where T <: Unsigned = bitnand!(deepcopy(a), b)
+Base.nand(a::T, b::ArbUInt) where T <: Unsigned = bitnand!(deepcopy(b), a)
