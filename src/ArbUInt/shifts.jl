@@ -6,33 +6,34 @@ function shift_left!(a::ArbUInt, shift::T) where T <: Integer
     shift < zero(T) && return shift_right!(a, abs(shift))
     iszero(shift) && return a
     bits = T(BITS)
-    more_digits = shift ÷ bits
-    more_digits > typemax(UInt) && throw(DomainError(shift, "requested shift too large to fit in memory"))
-    more_digits = UInt(more_digits)
+    digits = shift ÷ bits
+    digits > typemax(UInt) && throw(DomainError(shift, "requested shift too large to fit in memory"))
+    digits = UInt(digits)
     shift = UInt8(shift % bits)
-    _shift_left!(a, more_digits, shift)
+    _shift_left!(a, digits, shift)
 end
 const shl! = shift_left!
 
-function _shift_left!(a::ArbUInt, new_digits::UInt, shift::UInt8)
-    data = if iszero(new_digits)
+function _shift_left!(a::ArbUInt, digits::UInt, shift::UInt8)
+    data = if iszero(digits)
         a.data
     else
         # we may crash here due to lack of memory, nothing we can do about that
-        Base._growbeg0!(a.data, signed(new_digits) + 1) # REMOVEME: once we can grow with guaranteed zeroed memory, since this is internal
+        Base._growbeg0!(a.data, signed(digits)) # REMOVEME: once we can grow with guaranteed zeroed memory, since this is internal
         a.data
     end
 
-    one_based_digits = new_digits + 1
+    digits += one(digits) # one-based adjustment
     if shift > 0
         carry = zero(eltype(data))
         carry_shift = UInt8(BITS) - shift
-        for i in one_based_digits:lastindex(data)
+        for i in digits:lastindex(data)
             elem = data[i]
             new_carry = elem >> carry_shift
             data[i] = (elem << shift) | carry
             carry = new_carry
         end
+        !iszero(carry) && push!(data, carry)
     end
 
     normalize!(a) # unlike rust, we modify the original - not sure if that's a good idea
@@ -59,8 +60,8 @@ end
 const shr! = shift_right!
 
 function _shift_right!(a::ArbUInt, digits::UInt, shift::UInt8)
-    digits >= length(data) && return set_zero!(a)
-    data = @view a.data[digits:end]
+    digits >= sizeof(ArbDigit)*length(a.data) && return set_zero!(a)
+    data = @view a.data[digits+1:end]
     
     if shift > 0
         borrow = 0
@@ -73,9 +74,10 @@ function _shift_right!(a::ArbUInt, digits::UInt, shift::UInt8)
         end
     end
     
-    # maybe dangerous when aliased? 
-    a.data[1:length(a.data)-digits] .= data
-    a # unlike rust, we modify the original
+    # maybe dangerous when aliased?
+    a.data[begin:length(data)] .= data
+    resize!(a.data, length(data)) 
+    normalize!(a) # unlike rust, we modify the original
 end
 
 # this makes a surprising amount of sense
