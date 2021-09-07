@@ -21,23 +21,24 @@ Base.show(io::IO, m::MIME"text/plain", a::ArbUInt) = print(io, string(a))
 Base.deepcopy(a::ArbUInt) = ArbUInt(deepcopy(a.data))
 
 Base.:(==)(a::ArbUInt, b::ArbUInt) = a.data == b.data
-Base.hash(a::ArbUInt, h) = hash(a.data, h)
+Base.hash(a::ArbUInt, h::UInt) = hash(a.data, h)
 
 Base.:(<)(a::ArbUInt, b::ArbUInt) = a.data < b.data
 Base.:(<=)(a::ArbUInt, b::ArbUInt) = a < b || a == b
 
-Base.zero(a::ArbUInt) = zero(ArbUInt)
-Base.one(a::ArbUInt) = one(ArbUInt)
 Base.zero(::Type{ArbUInt}) = ArbUInt(ArbDigit[])
-Base.one(::Type{ArbUInt}) = ArbUInt([1])
+Base.one(::Type{ArbUInt}) = ArbUInt([one(ArbDigit)])
 
 Base.isone(a::ArbUInt) = isone(length(a.data)) && isone(a.data[end])
 Base.iszero(a::ArbUInt) = isempty(a.data)
 
 function normalize!(a::ArbUInt)
-    lastZero = findlast(!iszero, a.data)
-    lastZero === nothing && return a
-    resize!(a.data, lastZero)
+    isempty(a.data) && return a
+    idx = lastindex(a.data)
+    while checkbounds(Bool, a.data, idx) && iszero(a.data[idx])
+        idx = prevind(a.data, idx)
+    end
+    resize!(a.data, idx)
     a
 end
 
@@ -54,16 +55,24 @@ end
 
 function Base.trailing_zeros(a::ArbUInt)
     i = findfirst(!iszero, a.data)
-    i === nothing && return nothing
-    zeros = trailing_zeros(a.data(i))
-    i * BITS + zeros
+    i === nothing && return length(a.data) * BITS
+    zeros = trailing_zeros(a.data[i])
+    (i-1) * BITS + zeros
 end
 
 function Base.trailing_ones(a::ArbUInt)
     i = findfirst(!iszero, a.data)
-    i === nothing && return nothing
-    ones = trailing_ones(a.data(i))
-    i * BITS + ones
+    i === nothing && return 0
+    ones = trailing_ones(a.data[i])
+    (i-1) * BITS + ones
+end
+
+Base.leading_ones(a::ArbUInt) = leading_ones(first(a.data))
+function Base.leading_zeros(a::ArbUInt)
+    i = findlast(!iszero, a.data)
+    i === nothing && return length(a.data) * BITS
+    zeros = leading_zeros(a.data[i])
+    (length(a.data) - i) * BITS + zeros
 end
 
 Base.count_ones(a::ArbUInt) = mapreduce(count_ones, +, a.data)
