@@ -20,11 +20,23 @@ Base.show(io::IO, m::MIME"text/plain", a::ArbUInt) = print(io, string(a))
 
 Base.deepcopy(a::ArbUInt) = ArbUInt(deepcopy(a.data))
 
-Base.:(==)(a::ArbUInt, b::ArbUInt) = a.data == b.data
+Base.:(==)(a::ArbUInt, b::ArbUInt) = length(a.data) == length(b.data) && a.data == b.data
 Base.hash(a::ArbUInt, h::UInt) = hash(a.data, h)
 
-Base.:(<)(a::ArbUInt, b::ArbUInt) = a.data < b.data
-Base.:(<=)(a::ArbUInt, b::ArbUInt) = a < b || a == b
+function Base.:(<)(a::ArbUInt, b::ArbUInt)
+    length(a.data) < length(b.data) && return true
+    length(a.data) > length(b.data) && return false
+    return _less(a.data, b.data)
+end
+function _less(a, b)
+    idx = lastindex(a) # we only hit this method when length(a) === length(b)
+    isEq = a[idx] == b[idx]
+    while isEq
+        idx = prevind(a, idx)
+        isEq = a[idx] == b[idx]
+    end
+    a[idx] < b[idx]
+end
 
 Base.zero(::Type{ArbUInt}) = ArbUInt(ArbDigit[])
 Base.one(::Type{ArbUInt}) = ArbUInt([one(ArbDigit)])
