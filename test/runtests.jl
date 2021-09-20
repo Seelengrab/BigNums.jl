@@ -6,9 +6,9 @@ using Random
 
 ### Function Defs
 
-genArbUInt(i=5) = Integrated(Generator{ArbUInt}(rng -> ArbUInt(root(generate(rng, PropCheck.vector(i, igen(ArbDigit)))))))
-PropCheck.generate(rng, ::Type{ArbUInt}) = genArbUInt(rng)
-PropCheck.shrink(t::ArbUInt) = PropCheck.iunique(Iterators.map(ArbUInt, shrink(t.data)))
+genArbUInt(i=0x5) = Integrated(Generator{ArbUInt}(rng -> ArbUInt(root(generate(rng, PropCheck.vector(i, igen(ArbDigit)))))))
+PropCheck.generate(rng, ::Type{ArbUInt}) = root(generate(rng, genArbUInt()))
+PropCheck.shrink(t::ArbUInt) = PropCheck.iunique(Iterators.map(ArbUInt ∘ reverse!, shrink(reverse(t.data))))
 
 # PropCheck.specials(::Type{ArbUInt}) = ArbUInt[
 #     ArbUInt.(must_tests)...,
@@ -136,5 +136,23 @@ end
         end
     end
 end
-
+@testset "Ordering" begin
+    @testset "$orderTransitive" begin
+        gen = interleave(genArbUInt(), genArbUInt(), genArbUInt())
+        @test check(Base.splat(orderTransitive), gen)
+    end
+    @testset "$orderReversal" begin
+        gen = interleave(genArbUInt(), genArbUInt())
+        @test check(Base.splat(orderReversal), gen)
+    end
+    @testset "$trichotomy" begin
+        gen = interleave(genArbUInt(), genArbUInt())
+        @test check(Base.splat(trichotomy), gen)
+    end
+    @testset "$orderPreservedAddition" begin
+        genPair = filter(x -> x[1] < x[2], igen(Tuple{ArbUInt,ArbUInt}))
+        gen = interleave(genPair, genArbUInt())
+        @test check(Base.splat(orderPreservedAddition), gen)
+    end
+end
 end

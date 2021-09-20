@@ -38,6 +38,57 @@ begin
     end
 end
 
+################
+### Ordering ###
+################
+
+begin
+    function orderTransitive(a,b,c)
+        if a < b && b < c
+            return a < c
+        elseif a < c && c < b
+            return a < b
+        elseif b < c && c < a
+            return b < a
+        elseif b < a && a < c
+            return b < c
+        elseif c < a && a < b
+            return c < b
+        elseif c < b && b < a
+            return c < a
+        else
+            return false
+        end
+    end
+
+    function orderReversal(a,b)
+        if a < b
+            return b > a
+        elseif b < a
+            return a > b
+        else
+            return a == b
+        end
+    end
+
+    function trichotomy(a,b)
+        x1 = a < b
+        x2 = a == b
+        x3 = a > b
+        if x1
+            return x2 == x3 == false
+        elseif x2
+            return x1 == x3 == false
+        elseif x3
+            return x1 == x2 == false
+        end
+    end
+
+    function orderPreservedAddition((small,big),constant)
+        (small + constant) < (big + constant)
+    end
+end
+
 ##################
 ### Arithmetic ###
 ##################
@@ -101,7 +152,7 @@ begin ## Shifts ##
     function leftShiftTrailLeadCorrect(a, sh)
         b = a << sh
         iszero(a) && return trailing_zeros(a) == trailing_zeros(b) == 0
-        
+
         trail_correct = trailing_zeros(a) + sh == trailing_zeros(b)
 
         sh %= BITS # => sh < BITS (the part we care about)
@@ -201,7 +252,9 @@ begin ## Combined Properties ##
     function lossyShift(a, sh)
         b = (a >> sh) << sh
         # mask out the parts we shifted out in b
+        # FIXME: This generation of the mask is broken for when we have more than one word
         mask = ArbUInt(unsigned(-1) % ArbDigit) << sh
+        # mask = (one(ArbUInt) << sh) - 0x1 # this is proper, but we don't have subtraction yet
         pop!(mask.data)
         bitneg!(mask)
         (b ⊻ (a & mask)) == a
