@@ -9,10 +9,13 @@ end
 ArbUInt(data::AbstractVector) = ArbUInt(convert(Vector{ArbDigit}, data))
 ArbUInt() = zero(ArbUInt)
 ArbUInt(x) = ArbUInt(ArbDigit[x])
+ArbUInt(a::ArbUInt) = deepcopy(a)
 ArbUInt(x::DoubleArbDigit) = ArbUInt(reverse!([fromDoubleArbDigit(x)...]))
 if DoubleArbDigit === UInt64
     ArbUInt(x::UInt128) = ArbUInt(reverse!([u32_from_u128(x)...]))
 end
+
+Base.promote_type(::Type{<:Integer}, ::Type{ArbUInt}) = ArbUInt
 
 Base.string(a::ArbUInt) = "ArbUInt($(a.data))"
 Base.show(io::IO, a::ArbUInt) = print(io, string(a))
@@ -22,25 +25,21 @@ Base.deepcopy(a::ArbUInt) = ArbUInt(deepcopy(a.data))
 
 Base.:(==)(a::ArbUInt, b::ArbUInt) = length(a.data) == length(b.data) && a.data == b.data
 Base.hash(a::ArbUInt, h::UInt) = hash(a.data, h)
+Base.:(<=)(a::ArbUInt, b::ArbUInt) = a == b || a < b
 
-function Base.:(<)(a::ArbUInt, b::ArbUInt)
-    length(a.data) < length(b.data) && return true
-    length(a.data) > length(b.data) && return false
-    return _less(a.data, b.data)
-end
-function _less(a, b)
+Base.:(<)(a::ArbUInt, b::ArbUInt) = return _less(<, a.data, b.data)
+function _less(op, a, b)
+    length(a) < length(b) && return true
+    length(a) > length(b) && return false
     idx = lastindex(a) # we only hit this method when length(a) === length(b)
-    isEq = a[idx] == b[idx]
-    while isEq
+    while idx > 0 && a[idx] == b[idx]
         idx = prevind(a, idx)
-        isEq = a[idx] == b[idx]
     end
-    a[idx] < b[idx]
+    idx != 0 && op(a[idx], b[idx])
 end
 
 Base.zero(::Type{ArbUInt}) = ArbUInt(ArbDigit[])
 Base.one(::Type{ArbUInt}) = ArbUInt([one(ArbDigit)])
-
 Base.isone(a::ArbUInt) = isone(length(a.data)) && isone(a.data[end])
 Base.iszero(a::ArbUInt) = isempty(a.data)
 
@@ -87,13 +86,17 @@ function Base.leading_zeros(a::ArbUInt)
     (length(a.data) - i) * BITS + zeros
 end
 
-Base.count_ones(a::ArbUInt) = mapreduce(count_ones, +, a.data)
-Base.count_zeros(a::ArbUInt) = mapreduce(count_zeros, +, a.data)
+Base.count_ones(a::ArbUInt) = isempty(a.data) ? 0 : mapreduce(count_ones, +, a.data)
+function Base.count_zeros(a::ArbUInt)
+    iszero(a) || isone(a) && return 0
+    nzeros = mapreduce(count_zeros, +, a.data)
+    nzeros - leading_zeros(a)
+end
 
 function is_bit_set(a::ArbUInt, bit)
     bits_per_digit = UInt(BITS)
     digit_index = bit ÷ bits_per_digit
-    iszero(digitindex) && return false
+    iszero(digit_index) && return false
     digit = a.data[digit_index]
     mask = one(ArbDigit) << (bit % bits_per_digit)
     return (digit & mask) != 0
@@ -110,29 +113,21 @@ function set_bit!(a::ArbUInt, bit, value)
         a.data[digit_index] |= mask
     elseif digit_index <= length(a.data)
         a.data[digit_index] &= ~mask
-        normalize!(data)
+        normalize!(a.data)
     end
     a
 end
 
+include("rng.jl")
 include("addition.jl")
 include("subtraction.jl")
 include("bits.jl")
 include("shifts.jl")
+include("multiplication.jl")
 
 ### SUBTRACTION ###
 
 # TODO: Implement signed numbers
-
-### MULTIPLICATION ###
-
-function Base.:*(a::ArbUInt, b::UInt)
-    # TODO: Implement multiplication with UInt
-end
-
-function mul(a::ArbUInt, b::ArbUInt)
-    # TODO: Implement multiplication
-end
 
 ### DIVISION ###
 
