@@ -6,16 +6,7 @@ using Random
 
 ### Function Defs
 
-genArbUInt(i=0x5) = Integrated(Generator{ArbUInt}(rng -> ArbUInt(root(generate(rng, PropCheck.vector(i, igen(ArbDigit)))))))
-PropCheck.generate(rng, ::Type{ArbUInt}) = root(generate(rng, genArbUInt()))
-PropCheck.shrink(t::ArbUInt) = PropCheck.iunique(Iterators.map(ArbUInt ∘ reverse!, shrink(reverse(t.data))))
-
-# PropCheck.specials(::Type{ArbUInt}) = ArbUInt[
-#     ArbUInt.(must_tests)...,
-#     ArbUInt.(permutations(must_tests, 2))...,
-#     ArbUInt.(permutations(must_tests, 3))...,
-# ]
-
+include("genfuncs.jl")
 include("properties.jl")
 
 ### Tests ###
@@ -42,12 +33,21 @@ end
     end
 end
 @testset "Multiplication" begin
+    @testset "long_kara_eq" begin
+        gen = PropCheck.tuple(2, PropCheck.vector(Integrated(Generator{UInt}(rng -> rand(rng,33:65))), igen(ArbDigit)))
+        @test check(Base.splat(long_karatsuba_eq), gen)
+    end
     @testset "$f" for (n,f) in ((2,commutative_mul),
                             (3,associative_mul),
                             (1,identity_mul),
                             (1,zero_mul))
-        gen = PropCheck.tuple(n, genArbUInt())
-        @test check(Base.splat(f), gen)
+        @testset for i in (1:32, 33:64) #, 65:1024)
+            sizeGen = Integrated(Generator{UInt}(
+                rng -> unsigned(rand(rng, i))
+            ))
+            gen = PropCheck.tuple(n, genArbUInt(sizeGen))
+            @test check(Base.splat(f), gen)
+        end
     end
 end
 @testset "Bitwise" begin
@@ -62,7 +62,7 @@ end
         end
         @testset "$additionOfShifts" begin
             gen = interleave(genArbUInt(), igen(Tuple{UInt8, UInt8}))
-            @test check(Base.splat(additionOfShifts), gen) 
+            @test check(Base.splat(additionOfShifts), gen)
         end
         @testset "$shiftAntiInverse" begin
             gen = interleave(genArbUInt(), igen(UInt8)) # shifting more would be irresponsible
@@ -150,7 +150,11 @@ end
         @test check(Base.splat(trichotomy), gen)
     end
     @testset "$orderPreservedAddition" begin
-        genPair = filter(x -> x[1] < x[2], igen(Tuple{ArbUInt,ArbUInt}))
+        genPair = Integrated(Generator{Tuple{ArbUInt, ArbUInt}}() do rng
+            upper = generate(rng, ArbUInt)
+            lower = rand(rng, zero(ArbUInt):upper)
+            return (lower, upper + 0x1) # guarantee that the second one is larger
+        end)
         gen = interleave(genPair, genArbUInt())
         @test check(Base.splat(orderPreservedAddition), gen)
     end

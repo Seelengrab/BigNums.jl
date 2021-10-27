@@ -57,7 +57,7 @@ begin
         elseif c < b && b < a
             return c < a
         else
-            return false
+            return a == b || b == c || a == c
         end
     end
 
@@ -112,6 +112,19 @@ begin ## Addition ##
 end
 
 begin ## Multiplication ##
+    function long_karatsuba_eq(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
+        len = length(a) + length(b)
+        long_buf = zeros(ArbDigit, len)
+        kara_buf = zeros(ArbDigit, len)
+
+        short, long = length(a) < length(b) ? (a,b) : (b,a)
+
+        BigNums.long_mul!(long_buf, long, short)
+        BigNums.karatsuba!(kara_buf, long, short)
+
+        all(Base.splat(==), zip(kara_buf, long_buf))
+    end
+
     function commutative_mul(a::ArbUInt, b::ArbUInt)
         c = a * b
         d = b * a
