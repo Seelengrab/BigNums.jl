@@ -17,9 +17,7 @@ end
 
 Base.promote_type(::Type{<:Integer}, ::Type{ArbUInt}) = ArbUInt
 
-Base.string(a::ArbUInt) = "ArbUInt($(a.data))"
-Base.show(io::IO, a::ArbUInt) = print(io, string(a))
-Base.show(io::IO, m::MIME"text/plain", a::ArbUInt) = print(io, string(a))
+Base.show(io::IO, m::MIME"text/plain", a::ArbUInt) = print(io, "0x", string(a; base=16))
 
 Base.deepcopy(a::ArbUInt) = ArbUInt(deepcopy(a.data))
 
@@ -119,6 +117,7 @@ function set_bit!(a::ArbUInt, bit, value)
 end
 
 include("rng.jl")
+include("strings.jl")
 include("addition.jl")
 include("subtraction.jl")
 include("bits.jl")
