@@ -23,7 +23,7 @@ function bitand!(a::ArbUInt, b::T) where T <: Unsigned
 end
 
 function Base.:(&)(a::ArbUInt, b::ArbUInt)
-    short, long = length(a.data) <= length(b.data) ? (a,b) : (b,a)    
+    short, long = length(a.data) <= length(b.data) ? (a,b) : (b,a)
     bitand!(deepcopy(short), long)
 end
 function Base.:(&)(a::ArbUInt, b::T) where T <: Unsigned
