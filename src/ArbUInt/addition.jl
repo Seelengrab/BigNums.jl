@@ -3,20 +3,20 @@
 """
     adc(c_in, a, b)
 
-    Calculates the sum of carry_in, a and b and returns their sum as well as an UInt8 for carry_out. 
+    Calculates the sum of carry_in, a and b and returns their sum as well as an UInt8 for carry_out.
 """
-function adc(c_in, a::ArbDigit, b::ArbDigit)::Tuple{ArbDigit, Bool}
+function adc(c_in, a::ArbDigit, b::ArbDigit)
     s = DoubleArbDigit(a) + DoubleArbDigit(b) + DoubleArbDigit(c_in)
     hi, lo = fromDoubleArbDigit(s)
-    lo, !iszero(hi)
+    lo, hi
 end
 
 function _add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
-    # assumes length(a) >= length(b), returns carry
+    @assert length(a) >= length(b) "length(a) == $(length(a)) < $(length(b)) == length(b), should be >="
     a_lo = @view a[begin:length(b)]
     a_hi = @view a[length(b)+1:end]
-    
-    carry = zero(UInt8)
+
+    carry = zero(ArbDigit)
     @inbounds for (i,(a_el,b_el)) in enumerate(zip(a_lo, b))
         a_lo[i], carry = adc(carry, a_el, b_el)
     end
@@ -24,24 +24,24 @@ function _add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
     if !iszero(carry)
         carry = _add2!(a_hi, carry)
     end
-    
+
     carry
 end
 
 function _add2!(a::AbstractVector{ArbDigit}, carry)
     for (i,a_el) in enumerate(a)
         # TODO: can we do this faster, without going up in size?
-        a[i], carry = adc(carry, a_el, ArbDigit(0))
+        a[i], carry = adc(carry, a_el, zero(ArbDigit))
         iszero(carry) && break
     end
-    
+
     carry
 end
 
-# function add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
-#     carry = _add2!(a, b)
-#     @assert iszero(carry)
-# end
+function add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
+    carry = _add2!(a, b)
+    @assert iszero(carry)
+end
 
 """
     add!(a, b)
@@ -99,7 +99,7 @@ if DoubleArbDigit === UInt64
             add!(a, UInt64(b))
         else
             a,b,c,d = u32_from_u128(b)
-            carry = if a > 0 
+            carry = if a > 0
                 while length(a.data) < 4
                     push!(a.data, 0)
                 end
@@ -119,8 +119,37 @@ if DoubleArbDigit === UInt64
 end
 
 # fallback gracefully to copying interface
-Base.:(+)(a::UInt128, b::ArbUInt) = add!(deepcopy(b), a)
-Base.:(+)(a::ArbUInt, b::UInt128) = add!(deepcopy(a), b)
+Base.:(+)(a::DoubleArbDigit, b::ArbUInt) = add!(deepcopy(b), a)
+Base.:(+)(a::ArbUInt, b::DoubleArbDigit) = add!(deepcopy(a), b)
 Base.:(+)(a::Unsigned, b::ArbUInt) = add!(deepcopy(b), convert(ArbDigit, a))
 Base.:(+)(a::ArbUInt, b::Unsigned) = add!(deepcopy(a), convert(ArbDigit, b))
 Base.:(+)(a::ArbUInt, b::ArbUInt) = length(a.data) >= length(b.data) ? add!(deepcopy(a), b) : add!(deepcopy(b), a)
+Base.:(+)(b::Signed, a::ArbUInt) = +(a,b)
+Base.:(+)(_::ArbUInt, b::BigInt) = throw(ArgumentError("addition with BigInt not implemented"))
+function Base.:(+)(a::ArbUInt, b::Signed)
+    if b < 0
+        a - abs(b)
+    else
+        a + unsigned(b)
+    end
+end
+
+function (::Type{T})(x::ArbUInt) where T<:Base.BitUnsigned
+    if iszero(x)
+        return zero(T)
+    elseif isone(length(x.data))
+        return convert(T, x.data[1])
+    else
+        throw(InexactError(nameof(T), T, x))
+    end
+end
+
+function (::Type{T})(x::ArbUInt) where T<:Base.BitSigned
+    if iszero(x)
+        return zero(T)
+    elseif isone(length(x.data))
+        return convert(T, x.data[1])
+    else
+        throw(InexactError(nameof(T), T, x))
+    end
+end
