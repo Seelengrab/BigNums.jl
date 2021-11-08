@@ -273,3 +273,23 @@ begin ## Combined Properties ##
         (b ⊻ (a & mask)) == a
     end
 end
+
+begin #= Stringification & Parsing =#
+    function parsestring(str, base)
+        string(parse(ArbUInt, str); base=base, pad=length(str)) == str
+    end
+
+    function stringparse(a, base)
+        parse(ArbUInt, string(a; base=base)) == a
+    end
+
+    function throwNonHex(str)
+        try
+            parse(ArbUInt, str; base=16)
+        catch ex
+            ex isa ArgumentError && return true
+            rethrow(ex)
+        end
+        return false
+    end
+end

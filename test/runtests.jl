@@ -159,4 +159,31 @@ end
         @test check(Base.splat(orderPreservedAddition), gen)
     end
 end
+@testset "Strings & parsing" begin
+    @testset "parse(string(..))" begin
+        gen = genArbUInt(igen(0x100))
+        @test check(x -> stringparse(x, 16), gen)
+    end
+    hexchar(c) = map(x -> Char(x < 0xa ? x+0x30 : x-0xa+0x61), c)
+    elgen = Integrated(Generator{UInt8}(rng -> rand(rng, 0x0:0xf)))
+    len = igen(unsigned(1000))
+    elVectorGen = filter(x -> !iszero(length(x)), PropCheck.vector(len, elgen))
+    @testset "string(parse(..))" begin
+        validHexString = map(String ∘ hexchar, elVectorGen)
+
+        @test check(x -> parsestring(x, 16), validHexString)
+    end
+    @testset "throwing inputs" begin
+        @test_throws ArgumentError parse(ArbUInt, "")
+
+        nonHex = filter(!isxdigit, '\u00':'\uff')
+        invalidHexString = map(elVectorGen, String) do charVec
+            retVec = map(hexchar, charVec)
+            targetIdx = rand(eachindex(retVec))
+            retVec[targetIdx] = rand(nonHex)
+            join(retVec)
+        end
+        @test check(throwNonHex, invalidHexString)
+    end
+end
 end
