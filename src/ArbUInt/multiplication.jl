@@ -38,7 +38,8 @@ function macDigit!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
 
     # there should never be anything left over
     # i.e. if this assert fires, the one above
-    # should also have fired already
+    # should also have fired already or acc was
+    # not filled with zeros
     @assert iszero(final_carry) "carry overflow during multiplication!"
 end
 
