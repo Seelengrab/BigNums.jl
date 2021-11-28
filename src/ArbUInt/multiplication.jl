@@ -204,11 +204,11 @@ function mac3!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c::Ab
 
     if length(short) <= 32
         long_mul!(acc, long, short)
-    elseif length(short) <= 256
+    else #if length(short) <= 256
         karatsuba!(acc, long, short)
-    else
-        # TODO: implement multiplication for numbers larger than 256 digits
-        throw(ArgumentError("Multiplication for numbers with more than 256 digits has not been implemented yet."))
+    #else
+        # TODO: implement Toom-3  multiplication for numbers larger than 256 digits
+        #throw(ArgumentError("Multiplication for numbers with more than 256 digits has not been implemented yet."))
     end
 end
 
