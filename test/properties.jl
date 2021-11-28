@@ -120,7 +120,7 @@ begin ## Multiplication ##
         short, long = length(a) < length(b) ? (a,b) : (b,a)
 
         BigNums.long_mul!(long_buf, long, short)
-        BigNums.karatsuba!(kara_buf, long, short)
+        BigNums.karatsuba!(kara_buf, long, short, zeros(ArbDigit, len*2))
 
         all(Base.splat(==), zip(kara_buf, long_buf))
     end

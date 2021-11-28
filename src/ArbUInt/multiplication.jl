@@ -52,7 +52,19 @@ function long_mul!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
     end
 end
 
-function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
+function p_buf_len(len_short, len_long)
+    minlen = len_short + len_long
+    @debug minlen, len_short, len_long
+    (minlen < 32 || len_short <= 1) && return minlen
+
+    short_half_len = div(len_short, 2)
+    short_len = len_short - short_half_len
+    long_len  = len_long - short_half_len
+
+    return minlen + p_buf_len(short_len, long_len)
+end
+
+function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, buf::AbstractVector{ArbDigit})
     #= karatsuba multiplication
       exponents are just for numbering, not power function
       power is denoted by ^
@@ -125,14 +137,13 @@ function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, 
 
     # uppers are longer, so we need at most that space
     p_len = length(short¹) + length(long¹)
-    p = Vector{ArbDigit}(undef, p_len)
-    p_num = ArbUInt(p)
+    p = @view buf[1:p_len]
+    p_num = ArbUInt(p; norm=false)
 
-    resize!(p, p_len)
     fill!(p, zero(ArbDigit))
 
     # p³ = a² * b²
-    mac3!(p, short², long²)
+    mac3!(p, short², long², @view buf[p_len+1:end])
     normalize!(p_num) # remove excess zeros
     # acc += p³
     add2!(acc, p)
@@ -141,11 +152,11 @@ function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, 
     add2!(@view(acc[short_half_len+1:end]), p)
 
     # zero buffer
-    resize!(p, p_len)
+    p = resize(p, p_len)
     fill!(p, zero(ArbDigit))
 
     # p¹ = a¹ * b¹
-    mac3!(p, short¹, long¹)
+    mac3!(p, short¹, long¹, @view buf[p_len+1:end])
     normalize!(p_num) # remove excess zeros
     # acc += p¹*sh
     add2!(@view(acc[short_half_len+1:end]), p)
@@ -164,10 +175,10 @@ function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, 
     if sign¹ * sign² > 0
         # both subtractions are positive, so we
         # have to _subtract_ from acc
-        resize!(p, p_len)
+        p = resize(p, p_len)
         fill!(p, zero(ArbDigit))
 
-        mac3!(p, tmp¹, tmp²)
+        mac3!(p, tmp¹, tmp², @view buf[p_len+1:end])
         normalize!(p_num) # remove excess zeros
 
         # acc -= p²*sh
@@ -176,7 +187,7 @@ function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, 
     elseif sign¹ * sign² < 0
         # one subtraction is negative, so we
         # have to _add_ to acc
-        mac3!(@view(acc[short_half_len+1:end]), tmp¹, tmp²)
+        mac3!(@view(acc[short_half_len+1:end]), tmp¹, tmp², buf)
 
     else
         # one of the subtractions results in 0
@@ -187,7 +198,7 @@ function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, 
     return nothing
 end
 
-function mac3!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c::AbstractVector{ArbDigit})
+function mac3!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c::AbstractVector{ArbDigit}, buf=zeros(ArbDigit, p_buf_len(minmax(length(b), length(c))...)))
     if !iszero(length(b)) && iszero(first(b))
         nz = findfirst(!iszero, b)
         nz === nothing && return # only zeros!
@@ -206,7 +217,7 @@ function mac3!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c::Ab
     if length(short) <= 32
         long_mul!(acc, long, short)
     else #if length(short) <= 256
-        karatsuba!(acc, long, short)
+        karatsuba!(acc, long, short, buf)
     #else
         # TODO: implement Toom-3  multiplication for numbers larger than 256 digits
         #throw(ArgumentError("Multiplication for numbers with more than 256 digits has not been implemented yet."))

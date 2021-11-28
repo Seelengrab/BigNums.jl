@@ -2,24 +2,27 @@
 
 export ArbUInt
 
-struct ArbUInt <: Unsigned
-    data::Vector{ArbDigit}
-    ArbUInt(data::AbstractVector{ArbDigit}) = normalize!(new(data))
+mutable struct ArbUInt{T <: AbstractVector{ArbDigit}} <: Unsigned
+    data::T
+    function ArbUInt(data::AbstractVector{ArbDigit}; norm=true)
+        me = new{typeof(data)}(data)
+        norm && normalize!(me)
+        return me
+    end
 end
-ArbUInt(data::AbstractVector) = ArbUInt(convert(Vector{ArbDigit}, data))
 ArbUInt() = zero(ArbUInt)
-ArbUInt(x) = ArbUInt(ArbDigit[x])
-ArbUInt(a::ArbUInt) = deepcopy(a)
-ArbUInt(x::DoubleArbDigit) = ArbUInt(reverse!([fromDoubleArbDigit(x)...]))
+ArbUInt(x; kw...) = ArbUInt(ArbDigit[x]; kw...)
+ArbUInt(a::ArbUInt; kw...) = deepcopy(a; kw...)
+ArbUInt(x::DoubleArbDigit; kw...) = ArbUInt(reverse!([fromDoubleArbDigit(x)...]); kw...)
 if DoubleArbDigit === UInt64
-    ArbUInt(x::UInt128) = ArbUInt(reverse!([u32_from_u128(x)...]))
+    ArbUInt(x::UInt128; kw...) = ArbUInt(reverse!([u32_from_u128(x)...]); kw...)
 end
 
 Base.promote_type(::Type{<:Integer}, ::Type{ArbUInt}) = ArbUInt
 
 Base.show(io::IO, m::MIME"text/plain", a::ArbUInt) = print(io, "0x", string(a; base=16))
 
-Base.deepcopy(a::ArbUInt) = ArbUInt(deepcopy(a.data))
+Base.deepcopy(a::ArbUInt; kw...) = ArbUInt(deepcopy(a.data); kw...)
 
 Base.:(==)(a::ArbUInt, b::ArbUInt) = length(a.data) == length(b.data) && a.data == b.data
 Base.hash(a::ArbUInt, h::UInt) = hash(a.data, h)
@@ -36,8 +39,9 @@ function _less(op, a, b)
     idx != 0 && op(a[idx], b[idx])
 end
 
-Base.zero(::Type{ArbUInt}) = ArbUInt(ArbDigit[])
-Base.one(::Type{ArbUInt}) = ArbUInt([one(ArbDigit)])
+Base.zero(::ArbUInt) = zero(ArbUInt)
+Base.zero(::Type{<:ArbUInt}) = ArbUInt(ArbDigit[])
+Base.one(::Type{<:ArbUInt}) = ArbUInt([one(ArbDigit)])
 Base.isone(a::ArbUInt) = isone(length(a.data)) && isone(a.data[end])
 Base.iszero(a::ArbUInt) = isempty(a.data)
 
@@ -47,7 +51,11 @@ function normalize!(a::ArbUInt)
     while checkbounds(Bool, a.data, idx) && iszero(a.data[idx])
         idx = prevind(a.data, idx)
     end
-    resize!(a.data, idx)
+    a.data = if a.data isa Vector
+        resize!(a.data, idx)
+    elseif a.data isa SubArray{ArbDigit, 1}
+        resize(a.data, idx)
+    end
     a
 end
 
