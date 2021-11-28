@@ -1,6 +1,6 @@
 using Random: Random, AbstractRNG, Repetition, Sampler, rand!
 
-struct SamplerRangeArbUInt{SP<:Sampler{ArbDigit}} <: Sampler{ArbUInt}
+struct SamplerRangeArbUInt{SP<:Sampler{ArbDigit}} <: Sampler{ArbUInt{T} where T}
     start::ArbUInt
     gen::ArbUInt
     ndigits::Int
@@ -8,7 +8,7 @@ struct SamplerRangeArbUInt{SP<:Sampler{ArbDigit}} <: Sampler{ArbUInt}
     highsp::SP
 end
 
-function SamplerRangeArbUInt(::Type{RNG}, r::AbstractUnitRange{ArbUInt}, N::Repetition=Val(Inf)) where {RNG <: AbstractRNG}
+function SamplerRangeArbUInt(::Type{RNG}, r::AbstractUnitRange{<:ArbUInt}, N::Repetition=Val(Inf)) where {RNG <: AbstractRNG}
     isempty(r) && throw(ArgumentError("range must be non-empty"))
     gen = last(r) - first(r)
     ndigits = length(gen.data)
@@ -18,7 +18,7 @@ function SamplerRangeArbUInt(::Type{RNG}, r::AbstractUnitRange{ArbUInt}, N::Repe
     return SamplerRangeArbUInt(first(r), gen, ndigits, nmaxdigits, highsp)
 end
 
-Random.Sampler(::Type{RNG}, r::AbstractUnitRange{ArbUInt}, N::Repetition) where {RNG <: AbstractRNG} = SamplerRangeArbUInt(RNG, r, N)
+Random.Sampler(::Type{RNG}, r::AbstractUnitRange{<:ArbUInt}, N::Repetition) where {RNG <: AbstractRNG} = SamplerRangeArbUInt(RNG, r, N)
 
 Random.rand(rng::AbstractRNG, sp::SamplerRangeArbUInt) = rand!(rng, zero(ArbUInt), sp)
 
