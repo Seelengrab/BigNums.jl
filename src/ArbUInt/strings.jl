@@ -76,7 +76,7 @@ function stringify!(buf, a::ArbUInt, base)
 end
 
 
-function Base.parse(::Type{ArbUInt}, str::AbstractString; base=16)
+function Base.parse(::Type{<:ArbUInt}, str::AbstractString; base=16)
     !isascii(str) && throw(ArgumentError("Given string is not ASCII"))
     if base == 16
         !all(isxdigit, str) && throw(ArgumentError("Non-hex digit detected"))
@@ -84,7 +84,7 @@ function Base.parse(::Type{ArbUInt}, str::AbstractString; base=16)
     parse(ArbUInt, codeunits(str); base)
 end
 
-function Base.parse(::Type{ArbUInt}, units::AbstractVector{UInt8}; base::Int=16)
+function Base.parse(::Type{<:ArbUInt}, units::AbstractVector{UInt8}; base::Int=16)
     isempty(units) && return throw(ArgumentError("input string is empty"))
     # TODO: parsing assumes lower case for now
 

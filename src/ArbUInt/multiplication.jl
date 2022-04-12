@@ -58,10 +58,10 @@ function p_buf_len(len_short, len_long)
     (minlen < 32 || len_short <= 1) && return minlen
 
     short_half_len = div(len_short, 2)
-    short_len = len_short - short_half_len
-    long_len  = len_long - short_half_len
+    short_len = len_short - (short_half_len+1)
+    long_len  = len_long - (short_half_len+1)
 
-    return minlen + p_buf_len(short_len, long_len)
+    return minlen + 2*p_buf_len(short_len, long_len)
 end
 
 function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, buf::AbstractVector{ArbDigit})
