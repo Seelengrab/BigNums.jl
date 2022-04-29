@@ -41,7 +41,7 @@ end
                             (3,associative_mul),
                             (1,identity_mul),
                             (1,zero_mul))
-        @testset for i in (1:32, 33:64) #, 65:1024)
+        @testset for i in (1:32, 33:64, 65:1024, 1025:2048)
             sizeGen = Integrated(Generator{UInt}(
                 rng -> unsigned(rand(rng, i))
             ))
@@ -64,6 +64,7 @@ end
             gen = interleave(genArbUInt(), igen(Tuple{UInt8, UInt8}))
             @test check(Base.splat(additionOfShifts), gen)
         end
+
         @testset "$shiftAntiInverse" begin
             gen = interleave(genArbUInt(), igen(UInt8)) # shifting more would be irresponsible
             @test check(Base.splat(shiftAntiInverse), gen)
