@@ -90,6 +90,7 @@ function Base.parse(::Type{<:ArbUInt}, units::AbstractVector{UInt8}; base::Int=1
 
     if isone(length(units))
         lo = units[1]
+        # FIXME: This always throws, since there's no method yet
         return ArbUInt(parse(ArbDigit, lo; base))
     end
 
