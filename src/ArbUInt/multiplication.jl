@@ -23,7 +23,7 @@ function macDigit!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
     # so we add elementwise into the lower
     # length(b) digits of `acc`.
     # whatever is left over is our true carry.
-    for (a,(i,b)) in zip(a_lo, enumerate(b))
+    @inbounds for (a,(i,b)) in zip(a_lo, enumerate(b))
         a_lo[i], carry = macWithCarry(a, b, c, carry)
     end
 
@@ -47,21 +47,22 @@ function long_mul!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
     # naive long multiplication
     # multiply each digit of `c` with `b` and
     # write to `acc`
-    for (i,ci) in enumerate(c)
+    @inbounds for i in eachindex(c)
+        ci = c[i]
         macDigit!(@view(acc[i:end]), b, ci)
     end
 end
 
 function p_buf_len(len_short, len_long)
     minlen = len_short + len_long
-    @debug minlen, len_short, len_long
     (minlen < 32 || len_short <= 1) && return minlen
 
     short_half_len = div(len_short, 2)
-    short_len = len_short - (short_half_len+1)
-    long_len  = len_long - (short_half_len+1)
+    short_len = len_short - short_half_len - 1
+    long_len  = len_long - short_half_len - 1
 
-    return minlen + 2*p_buf_len(short_len, long_len)
+    # We have to be conservative, to always take the "largest" possible path
+    return minlen + p_buf_len(short_len, long_len)
 end
 
 function karatsuba!(acc::AbstractVector{ArbDigit}, a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, buf::AbstractVector{ArbDigit})
@@ -215,6 +216,7 @@ function mac3!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c::Ab
     short, long = length(b) < length(c) ? (b,c) : (c,b)
 
     if length(short) <= 32
+        @assert length(acc) >= length(long)+length(short)
         long_mul!(acc, long, short)
     else #if length(short) <= 256
         karatsuba!(acc, long, short, buf)

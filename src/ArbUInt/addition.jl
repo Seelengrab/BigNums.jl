@@ -29,7 +29,8 @@ function _add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
 end
 
 function _add2!(a::AbstractVector{ArbDigit}, carry)
-    for (i,a_el) in enumerate(a)
+    @inbounds for i in eachindex(a)
+        a_el = a[i]
         # TODO: can we do this faster, without going up in size?
         a[i], carry = adc(carry, a_el, zero(ArbDigit))
         iszero(carry) && break
