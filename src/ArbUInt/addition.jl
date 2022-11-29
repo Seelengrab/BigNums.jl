@@ -11,8 +11,8 @@ function adc(c_in, a::ArbDigit, b::ArbDigit)
     lo, hi
 end
 
-function _add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
-    @assert length(a) >= length(b) "length(a) == $(length(a)) < $(length(b)) == length(b), should be >="
+function _add2!(a::AbstractVector{ArbDigit}, b)
+    length(a) >= length(b) || _add2!_assert(a,b)
     a_lo = @view a[begin:length(b)]
     a_hi = @view a[length(b)+1:end]
 
@@ -27,8 +27,9 @@ function _add2!(a::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit})
 
     carry
 end
+@noinline _add2!_assert(a, b) = throw(AssertionError("length(a) == $(length(a)) < $(length(b)) == length(b), should be >="))
 
-function _add2!(a::AbstractVector{ArbDigit}, carry)
+function _add2!(a::AbstractVector{ArbDigit}, carry::ArbDigit)
     @inbounds for i in eachindex(a)
         a_el = a[i]
         # TODO: can we do this faster, without going up in size?
@@ -86,8 +87,7 @@ function add!(a::ArbUInt, b::DoubleArbDigit)
             push!(a.data, 0)
         end
 
-        # TODO: get rid of this allocation
-        carry = _add2!(a.data, [lo, hi])
+        carry = _add2!(a.data, (lo, hi))
         !iszero(carry) && push!(a.data, carry)
     end
     a
@@ -104,13 +104,13 @@ if DoubleArbDigit === UInt64
                 while length(a.data) < 4
                     push!(a.data, 0)
                 end
-                _add2!(a.data, [d, c, b, a])
+                _add2!(a.data, (d, c, b, a))
             else
                 @assert b > 0
                 while length(a.data) < 3
                     push!(a.data, 0)
                 end
-                _add2!(a.data, [d, c, b])
+                _add2!(a.data, (d, c, b))
             end
 
             !iszero(carry) && push!(a.data, carry)
@@ -139,7 +139,7 @@ function (::Type{T})(x::ArbUInt) where T<:Base.BitUnsigned
     if iszero(x)
         return zero(T)
     elseif isone(length(x.data))
-        return convert(T, x.data[1])
+        return convert(T, @inbounds x.data[1])
     else
         throw(InexactError(nameof(T), T, x))
     end
@@ -149,7 +149,7 @@ function (::Type{T})(x::ArbUInt) where T<:Base.BitSigned
     if iszero(x)
         return zero(T)
     elseif isone(length(x.data))
-        return convert(T, x.data[1])
+        return convert(T, @inbounds x.data[1])
     else
         throw(InexactError(nameof(T), T, x))
     end

@@ -1,10 +1,9 @@
-function macWithCarry(a::ArbDigit, b::ArbDigit, c::ArbDigit, carry::DoubleArbDigit)
-    @assert carry < (one(DoubleArbDigit) << BITS)
-    carry += DoubleArbDigit(a) + DoubleArbDigit(b) * DoubleArbDigit(c)
-    return carry % ArbDigit, carry >> BITS
+@inline function macWithCarry(a::ArbDigit, b::ArbDigit, c::ArbDigit, carry::DoubleArbDigit)
+    out = ((a % DoubleArbDigit) + carry) + (b % DoubleArbDigit) * (c % DoubleArbDigit)
+    return out % ArbDigit, out >> BITS
 end
 
-function mulWithCarry(a::ArbDigit, b::ArbDigit, cin::DoubleArbDigit)
+@inline function mulWithCarry(a::ArbDigit, b::ArbDigit, cin::DoubleArbDigit)
     cout = DoubleArbDigit(a) * DoubleArbDigit(b) + cin
     return cout % ArbDigit, cout >> BITS
 end
@@ -13,7 +12,7 @@ function macDigit!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
     iszero(c) && return
     # we need to make sure that we have enough space
     # meaning length(b) +1 for carry
-    @assert length(acc) > length(b) "accumulator needs extra space for carry!"
+    length(acc) > length(b) || macdigit_accsize()
 
     carry = zero(DoubleArbDigit)
     a_lo = @view acc[begin:length(b)]
@@ -23,8 +22,10 @@ function macDigit!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
     # so we add elementwise into the lower
     # length(b) digits of `acc`.
     # whatever is left over is our true carry.
-    @inbounds for (a,(i,b)) in zip(a_lo, enumerate(b))
-        a_lo[i], carry = macWithCarry(a, b, c, carry)
+    @inbounds for idx in eachindex(a_lo)
+        a_ = a_lo[idx]
+        b_ = b[idx]
+        a_lo[idx], carry = macWithCarry(a_, b_, c, carry)
     end
 
     carry_hi, carry_lo = fromDoubleArbDigit(carry)
@@ -33,23 +34,26 @@ function macDigit!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c
     final_carry = if iszero(carry_hi)
         _add2!(a_hi, carry_lo)
     else
-        _add2!(a_hi, [carry_hi, carry_lo])
+        _add2!(a_hi, (carry_hi, carry_lo))
     end
 
     # there should never be anything left over
     # i.e. if this assert fires, the one above
     # should also have fired already or acc was
     # not filled with zeros
-    @assert iszero(final_carry) "carry overflow during multiplication!"
+    iszero(final_carry) || macdigit_overflow()
 end
+@noinline macdigit_overflow() = throw(AssertionError(LazyString("carry overflow during multiplication!")))
+@noinline macdigit_accsize() = throw(AssertionError(LazyString("accumulator needs extra space for carry!")))
 
 function long_mul!(acc::AbstractVector{ArbDigit}, b::AbstractVector{ArbDigit}, c::AbstractVector{ArbDigit})
     # naive long multiplication
     # multiply each digit of `c` with `b` and
     # write to `acc`
-    @inbounds for i in eachindex(c)
+    for i in eachindex(c)
         ci = c[i]
-        macDigit!(@view(acc[i:end]), b, ci)
+        v = @inbounds @view acc[i:end]
+        macDigit!(v, b, ci)
     end
 end
 

@@ -1,7 +1,7 @@
 # Function definitions for interop w/ PropCheck.jl
 # seperated into their own file to make reproducing tests easier
 
-genArbUInt(i=igen(0x5)) = Integrated(Generator{ArbUInt}(rng -> ArbUInt(root(generate(rng, PropCheck.vector(i, igen(ArbDigit)))))))
+genArbUInt(i=igen(0x5)) = map(ArbUInt, PropCheck.vector(i, igen(ArbDigit)))
 PropCheck.generate(rng, ::Type{ArbUInt}) = root(generate(rng, genArbUInt()))
 function PropCheck.shrink(t::ArbUInt)
     shrunks = shrink(reverse(t.data))
